@@ -3,6 +3,7 @@ import { atom } from "jotai";
 export type Screen =
   | "home"
   | "auth"
+  | "profile"
   | "introLoading"
   | "outage"
   | "outOfMinutes"

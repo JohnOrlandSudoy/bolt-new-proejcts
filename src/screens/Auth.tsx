@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, 
   Mail, 
@@ -13,7 +13,10 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  X
+  X,
+  UserPlus,
+  LogIn,
+  ArrowLeft
 } from 'lucide-react';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useAtom } from 'jotai';
@@ -170,77 +173,113 @@ const SuccessMessage = ({ message }: { message: string }) => {
   );
 };
 
-interface AuthScreenProps {
-  onSuccess: () => void;
-}
+// Auth Mode Selection Component
+const AuthModeSelection = ({ 
+  onSelectMode 
+}: { 
+  onSelectMode: (mode: 'signin' | 'signup') => void 
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <div className="text-center space-y-3">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-400/40 to-purple-500/40 blur-lg animate-pulse" />
+            <div className="relative flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/50 shadow-xl">
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-500/20" />
+              <Sparkles className="size-6 text-cyan-400 relative z-10 drop-shadow-lg" />
+              <div className="absolute inset-0 rounded-lg border border-white/10" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-cyan-100 to-purple-200 bg-clip-text text-transparent tracking-tight">
+              NyxtGen AI
+            </h1>
+            <p className="text-xs text-slate-400 font-medium">Next-Generation Platform</p>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-white">
+            Welcome to the Future
+          </h2>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Choose how you'd like to access your AI experience
+          </p>
+        </div>
+      </div>
 
-export const Auth: React.FC<AuthScreenProps> = ({ onSuccess }) => {
-  const { autoSignUpOrIn, isLoading } = useAuthContext();
-  const [, setScreenState] = useAtom(screenAtom);
+      {/* Auth Options */}
+      <div className="space-y-4">
+        {/* Sign In Option */}
+        <PremiumButton
+          onClick={() => onSelectMode('signin')}
+          variant="primary"
+          className="w-full h-14 text-base"
+        >
+          <LogIn className="size-5" />
+          Sign In to Existing Account
+          <ArrowRight className="size-4" />
+        </PremiumButton>
+
+        {/* Sign Up Option */}
+        <PremiumButton
+          onClick={() => onSelectMode('signup')}
+          variant="secondary"
+          className="w-full h-14 text-base"
+        >
+          <UserPlus className="size-5" />
+          Create New Account
+          <ArrowRight className="size-4" />
+        </PremiumButton>
+      </div>
+
+      {/* Features */}
+      <div className="grid grid-cols-1 gap-2">
+        <FeatureBadge
+          icon={<Shield className="size-3" />}
+          text="Secure & Encrypted Authentication"
+        />
+        <FeatureBadge
+          icon={<Zap className="size-3" />}
+          text="Instant Access to AI Conversations"
+        />
+        <FeatureBadge
+          icon={<Sparkles className="size-3" />}
+          text="Premium AI Experience"
+        />
+      </div>
+    </motion.div>
+  );
+};
+
+// Sign In Form Component
+const SignInForm = ({ 
+  onBack, 
+  onSuccess 
+}: { 
+  onBack: () => void; 
+  onSuccess: () => void; 
+}) => {
+  const { signIn, isLoading } = useAuthContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [mode, setMode] = useState<'auto' | 'manual'>('auto');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Validate email
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  // Handle close modal
-  const handleClose = () => {
-    setScreenState({ currentScreen: "home" });
-  };
-
-  // Handle auto authentication
-  const handleAutoAuth = async () => {
-    setErrors({});
-    setSuccess('');
-
-    if (!email) {
-      setErrors({ email: 'Email is required' });
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      setErrors({ email: 'Please enter a valid email address' });
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      const result = await autoSignUpOrIn(email);
-
-      if (result.error) {
-        setErrors({ general: result.error.message });
-        return;
-      }
-
-      if (result.action === 'signup') {
-        setSuccess('Account created successfully! Welcome to NyxtGen AI.');
-      } else {
-        setSuccess('Welcome back! Signing you in...');
-      }
-
-      // Delay to show success message
-      setTimeout(() => {
-        onSuccess();
-      }, 1500);
-
-    } catch (error: any) {
-      setErrors({ general: error.message || 'Authentication failed' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Handle manual authentication
-  const handleManualAuth = async () => {
+  const handleSignIn = async () => {
     setErrors({});
     setSuccess('');
 
@@ -257,35 +296,326 @@ export const Auth: React.FC<AuthScreenProps> = ({ onSuccess }) => {
       return;
     }
 
-    if (password.length < 6) {
-      setErrors({ password: 'Password must be at least 6 characters' });
-      return;
-    }
-
     try {
       setIsSubmitting(true);
-      const result = await autoSignUpOrIn(email, password);
+      const result = await signIn(email, password);
 
       if (result.error) {
         setErrors({ general: result.error.message });
         return;
       }
 
-      if (result.action === 'signup') {
-        setSuccess('Account created successfully! Welcome to NyxtGen AI.');
-      } else {
-        setSuccess('Welcome back! Signing you in...');
-      }
-
+      setSuccess('Welcome back! Signing you in...');
       setTimeout(() => {
         onSuccess();
       }, 1500);
 
     } catch (error: any) {
-      setErrors({ general: error.message || 'Authentication failed' });
+      setErrors({ general: error.message || 'Sign in failed' });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-200"
+        >
+          <ArrowLeft className="size-5" />
+        </button>
+        <div>
+          <h2 className="text-xl font-bold text-white">Sign In</h2>
+          <p className="text-slate-400 text-sm">Welcome back to NyxtGen AI</p>
+        </div>
+      </div>
+
+      {/* Success Message */}
+      {success && <SuccessMessage message={success} />}
+
+      {/* General Error */}
+      {errors.general && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 backdrop-blur-sm"
+        >
+          <AlertCircle className="size-4 text-red-400 flex-shrink-0" />
+          <p className="text-red-300 text-sm font-medium">{errors.general}</p>
+        </motion.div>
+      )}
+
+      {/* Form */}
+      <div className="space-y-4">
+        {/* Email Input */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+            <Mail className="size-3 text-cyan-400" />
+            Email Address
+          </label>
+          <PremiumInput
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email address"
+            type="email"
+            icon={<Mail className="size-4" />}
+            error={errors.email}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        {/* Password Input */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+            <Lock className="size-3 text-cyan-400" />
+            Password
+          </label>
+          <PremiumInput
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            type={showPassword ? "text" : "password"}
+            icon={<Lock className="size-4" />}
+            showToggle={true}
+            onToggle={() => setShowPassword(!showPassword)}
+            error={errors.password}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        {/* Submit Button */}
+        <PremiumButton
+          onClick={handleSignIn}
+          disabled={isSubmitting || isLoading}
+          loading={isSubmitting}
+          className="w-full h-12 text-sm"
+        >
+          <LogIn className="size-4" />
+          Sign In
+          <ArrowRight className="size-3" />
+        </PremiumButton>
+      </div>
+    </motion.div>
+  );
+};
+
+// Sign Up Form Component
+const SignUpForm = ({ 
+  onBack, 
+  onSuccess 
+}: { 
+  onBack: () => void; 
+  onSuccess: () => void; 
+}) => {
+  const { signUp, isLoading } = useAuthContext();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleSignUp = async () => {
+    setErrors({});
+    setSuccess('');
+
+    if (!email || !password || !confirmPassword) {
+      setErrors({ 
+        email: !email ? 'Email is required' : '',
+        password: !password ? 'Password is required' : '',
+        confirmPassword: !confirmPassword ? 'Please confirm your password' : ''
+      });
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setErrors({ email: 'Please enter a valid email address' });
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrors({ password: 'Password must be at least 6 characters' });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrors({ confirmPassword: 'Passwords do not match' });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const result = await signUp(email, password, fullName);
+
+      if (result.error) {
+        setErrors({ general: result.error.message });
+        return;
+      }
+
+      setSuccess('Account created successfully! Welcome to NyxtGen AI.');
+      setTimeout(() => {
+        onSuccess();
+      }, 1500);
+
+    } catch (error: any) {
+      setErrors({ general: error.message || 'Sign up failed' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-200"
+        >
+          <ArrowLeft className="size-5" />
+        </button>
+        <div>
+          <h2 className="text-xl font-bold text-white">Create Account</h2>
+          <p className="text-slate-400 text-sm">Join the future of AI conversations</p>
+        </div>
+      </div>
+
+      {/* Success Message */}
+      {success && <SuccessMessage message={success} />}
+
+      {/* General Error */}
+      {errors.general && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 backdrop-blur-sm"
+        >
+          <AlertCircle className="size-4 text-red-400 flex-shrink-0" />
+          <p className="text-red-300 text-sm font-medium">{errors.general}</p>
+        </motion.div>
+      )}
+
+      {/* Form */}
+      <div className="space-y-4">
+        {/* Full Name Input */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+            <User className="size-3 text-cyan-400" />
+            Full Name (Optional)
+          </label>
+          <PremiumInput
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Enter your full name"
+            type="text"
+            icon={<User className="size-4" />}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        {/* Email Input */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+            <Mail className="size-3 text-cyan-400" />
+            Email Address
+          </label>
+          <PremiumInput
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email address"
+            type="email"
+            icon={<Mail className="size-4" />}
+            error={errors.email}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        {/* Password Input */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+            <Lock className="size-3 text-cyan-400" />
+            Password
+          </label>
+          <PremiumInput
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Create a secure password (min 6 characters)"
+            type={showPassword ? "text" : "password"}
+            icon={<Lock className="size-4" />}
+            showToggle={true}
+            onToggle={() => setShowPassword(!showPassword)}
+            error={errors.password}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        {/* Confirm Password Input */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+            <Lock className="size-3 text-cyan-400" />
+            Confirm Password
+          </label>
+          <PremiumInput
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Confirm your password"
+            type={showConfirmPassword ? "text" : "password"}
+            icon={<Lock className="size-4" />}
+            showToggle={true}
+            onToggle={() => setShowConfirmPassword(!showConfirmPassword)}
+            error={errors.confirmPassword}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        {/* Submit Button */}
+        <PremiumButton
+          onClick={handleSignUp}
+          disabled={isSubmitting || isLoading}
+          loading={isSubmitting}
+          className="w-full h-12 text-sm"
+        >
+          <UserPlus className="size-4" />
+          Create Account
+          <ArrowRight className="size-3" />
+        </PremiumButton>
+      </div>
+    </motion.div>
+  );
+};
+
+interface AuthScreenProps {
+  onSuccess: () => void;
+}
+
+export const Auth: React.FC<AuthScreenProps> = ({ onSuccess }) => {
+  const [, setScreenState] = useAtom(screenAtom);
+  const [currentView, setCurrentView] = useState<'selection' | 'signin' | 'signup'>('selection');
+
+  // Handle close modal
+  const handleClose = () => {
+    setScreenState({ currentScreen: "home" });
   };
 
   return (
@@ -314,7 +644,7 @@ export const Auth: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           {/* Close Button */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-200"
+            className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-200 z-20"
           >
             <X className="size-5" />
           </button>
@@ -326,179 +656,37 @@ export const Auth: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/20 via-transparent to-purple-500/20 blur-xl opacity-50" />
           
           {/* Content */}
-          <div className="relative z-10 space-y-6">
-            
-            {/* Header */}
-            <div className="text-center space-y-3">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-400/40 to-purple-500/40 blur-lg animate-pulse" />
-                  <div className="relative flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/50 shadow-xl">
-                    <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-500/20" />
-                    <Sparkles className="size-6 text-cyan-400 relative z-10 drop-shadow-lg" />
-                    <div className="absolute inset-0 rounded-lg border border-white/10" />
-                  </div>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-cyan-100 to-purple-200 bg-clip-text text-transparent tracking-tight">
-                    NyxtGen AI
-                  </h1>
-                  <p className="text-xs text-slate-400 font-medium">Next-Generation Platform</p>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-white">
-                  {mode === 'auto' ? 'Quick Access' : 'Secure Access'}
-                </h2>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  {mode === 'auto' 
-                    ? 'Enter your email for instant access'
-                    : 'Sign in or create an account'
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* Auth Mode Toggle */}
-            <div className="flex items-center justify-center gap-1 p-1 rounded-lg bg-slate-800/50 border border-slate-600/30">
-              <button
-                onClick={() => setMode('auto')}
-                className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all duration-200 ${
-                  mode === 'auto'
-                    ? 'bg-cyan-500 text-white shadow-lg'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                }`}
-              >
-                <Zap className="size-3 inline mr-1" />
-                Quick
-              </button>
-              <button
-                onClick={() => setMode('manual')}
-                className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all duration-200 ${
-                  mode === 'manual'
-                    ? 'bg-cyan-500 text-white shadow-lg'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                }`}
-              >
-                <Shield className="size-3 inline mr-1" />
-                Manual
-              </button>
-            </div>
-
-            {/* Success Message */}
-            {success && <SuccessMessage message={success} />}
-
-            {/* General Error */}
-            {errors.general && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 backdrop-blur-sm"
-              >
-                <AlertCircle className="size-4 text-red-400 flex-shrink-0" />
-                <p className="text-red-300 text-sm font-medium">{errors.general}</p>
-              </motion.div>
-            )}
-
-            {/* Auth Form */}
-            <div className="space-y-4">
-              {/* Email Input */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-                  <Mail className="size-3 text-cyan-400" />
-                  Email Address
-                </label>
-                <PremiumInput
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email address"
-                  type="email"
-                  icon={<Mail className="size-4" />}
-                  error={errors.email}
-                  disabled={isSubmitting}
+          <div className="relative z-10">
+            <AnimatePresence mode="wait">
+              {currentView === 'selection' && (
+                <AuthModeSelection 
+                  key="selection"
+                  onSelectMode={setCurrentView} 
                 />
-              </div>
-
-              {/* Manual Mode Fields */}
-              {mode === 'manual' && (
-                <>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-                      <Lock className="size-3 text-cyan-400" />
-                      Password
-                    </label>
-                    <PremiumInput
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      type={showPassword ? "text" : "password"}
-                      icon={<Lock className="size-4" />}
-                      showToggle={true}
-                      onToggle={() => setShowPassword(!showPassword)}
-                      error={errors.password}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-                      <User className="size-3 text-cyan-400" />
-                      Full Name (Optional)
-                    </label>
-                    <PremiumInput
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Enter your full name"
-                      type="text"
-                      icon={<User className="size-4" />}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </>
               )}
+              {currentView === 'signin' && (
+                <SignInForm 
+                  key="signin"
+                  onBack={() => setCurrentView('selection')}
+                  onSuccess={onSuccess}
+                />
+              )}
+              {currentView === 'signup' && (
+                <SignUpForm 
+                  key="signup"
+                  onBack={() => setCurrentView('selection')}
+                  onSuccess={onSuccess}
+                />
+              )}
+            </AnimatePresence>
 
-              {/* Submit Button */}
-              <PremiumButton
-                onClick={mode === 'auto' ? handleAutoAuth : handleManualAuth}
-                disabled={isSubmitting || isLoading}
-                loading={isSubmitting}
-                className="w-full h-12 text-sm"
-              >
-                {mode === 'auto' ? (
-                  <>
-                    <Zap className="size-4" />
-                    Get Instant Access
-                    <ArrowRight className="size-3" />
-                  </>
-                ) : (
-                  <>
-                    <Shield className="size-4" />
-                    Sign In / Sign Up
-                    <ArrowRight className="size-3" />
-                  </>
-                )}
-              </PremiumButton>
-            </div>
-
-            {/* Features */}
-            <div className="grid grid-cols-1 gap-2">
-              <FeatureBadge
-                icon={<Shield className="size-3" />}
-                text="Secure & Encrypted"
-              />
-              <FeatureBadge
-                icon={<Zap className="size-3" />}
-                text="Instant AI Conversations"
-              />
-              <FeatureBadge
-                icon={<Sparkles className="size-3" />}
-                text="Premium Experience"
-              />
-            </div>
-
-            {/* Legal */}
-            <div className="text-center">
+            {/* Legal Notice */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-center mt-6"
+            >
               <p className="text-xs text-slate-500 leading-relaxed">
                 By continuing, you agree to our{" "}
                 <a href="#" className="text-cyan-400 hover:text-cyan-300 hover:underline font-medium transition-colors">
