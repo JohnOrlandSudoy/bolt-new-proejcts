@@ -182,28 +182,105 @@ class ProfileService {
     }
   }
 
-  // Get user profile with interests
+  // Get user profile with interests - try both table structures
   async getUserProfile(userId: string): Promise<ProfileWithInterests | null> {
     try {
       console.log('Getting profile for user:', userId);
       
-      const { data, error } = await supabase
-        .rpc('get_user_profile_with_interests', { profile_user_id: userId });
+      // First try the new user_profiles table with RPC function
+      try {
+        const { data, error } = await supabase
+          .rpc('get_user_profile_with_interests', { profile_user_id: userId });
 
-      if (error) {
-        console.error('Get profile error:', error);
-        throw new Error(`Failed to get profile: ${error.message}`);
+        if (!error && data) {
+          console.log('Profile data received from RPC:', data);
+          return data;
+        } else {
+          console.log('RPC function failed or returned null:', error);
+        }
+      } catch (rpcError) {
+        console.log('RPC function not available:', rpcError);
       }
 
-      console.log('Profile data received:', data);
-      return data;
+      // Fallback: Try direct query on user_profiles table
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        if (!profileError && profileData) {
+          // Get interests separately
+          const { data: interestsData, error: interestsError } = await supabase
+            .from('user_interests')
+            .select('interest')
+            .eq('user_id', userId);
+
+          const interests = interestsData?.map(item => item.interest) || [];
+
+          console.log('Profile data received from direct query:', profileData);
+          return {
+            profile: profileData,
+            interests
+          };
+        } else {
+          console.log('Direct query on user_profiles failed:', profileError);
+        }
+      } catch (directError) {
+        console.log('Direct query failed:', directError);
+      }
+
+      // Final fallback: Try old profiles table
+      try {
+        const { data: oldProfileData, error: oldProfileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (!oldProfileError && oldProfileData) {
+          console.log('Profile data received from old profiles table:', oldProfileData);
+          
+          // Convert old profile format to new format
+          const convertedProfile: DatabaseProfile = {
+            id: oldProfileData.id,
+            user_id: oldProfileData.id,
+            email: oldProfileData.email,
+            profile_photo: oldProfileData.avatar_url,
+            cover_photo: '',
+            full_name: oldProfileData.full_name || '',
+            birthday: '',
+            bio: '',
+            job: '',
+            fashion: '',
+            age: undefined,
+            relationship_status: 'prefer-not-to-say',
+            location: '',
+            website: '',
+            phone: '',
+            created_at: oldProfileData.created_at,
+            updated_at: oldProfileData.updated_at
+          };
+
+          return {
+            profile: convertedProfile,
+            interests: []
+          };
+        }
+      } catch (oldError) {
+        console.log('Old profiles table query failed:', oldError);
+      }
+
+      console.log('No profile found for user:', userId);
+      return null;
     } catch (error) {
       console.error('Get profile failed:', error);
       throw error;
     }
   }
 
-  // Create or update user profile
+  // Create or update user profile - try multiple methods
   async upsertUserProfile(userId: string, profileData: Partial<UserProfile>): Promise<string> {
     try {
       console.log('Upserting profile for user:', userId, profileData);
@@ -250,31 +327,109 @@ class ProfileService {
         birthdayDate = profileData.birthday;
       }
 
-      const { data, error } = await supabase
-        .rpc('upsert_user_profile', {
-          profile_user_id: userId,
-          profile_email: profileData.email || '',
-          profile_photo: profilePhotoPath || null,
-          cover_photo: coverPhotoPath || null,
-          full_name: profileData.fullName || '',
-          birthday: birthdayDate,
-          bio: profileData.bio || '',
-          job: profileData.job || '',
-          fashion: profileData.fashion || '',
-          age: profileData.age || null,
-          relationship_status: profileData.relationshipStatus || 'prefer-not-to-say',
-          location: profileData.location || null,
-          website: profileData.website || null,
-          phone: profileData.phone || null
-        });
+      let profileId = null;
 
-      if (error) {
-        console.error('Upsert profile error:', error);
-        throw new Error(`Failed to save profile: ${error.message}`);
+      // Method 1: Try RPC function
+      try {
+        const { data, error } = await supabase
+          .rpc('upsert_user_profile', {
+            profile_user_id: userId,
+            profile_email: profileData.email || '',
+            profile_photo: profilePhotoPath || null,
+            cover_photo: coverPhotoPath || null,
+            full_name: profileData.fullName || '',
+            birthday: birthdayDate,
+            bio: profileData.bio || '',
+            job: profileData.job || '',
+            fashion: profileData.fashion || '',
+            age: profileData.age || null,
+            relationship_status: profileData.relationshipStatus || 'prefer-not-to-say',
+            location: profileData.location || null,
+            website: profileData.website || null,
+            phone: profileData.phone || null
+          });
+
+        if (!error && data) {
+          console.log('Profile upserted successfully with RPC:', data);
+          profileId = data;
+        } else {
+          console.error('RPC upsert failed:', error);
+        }
+      } catch (rpcError) {
+        console.error('RPC upsert exception:', rpcError);
       }
 
-      console.log('Profile upserted successfully:', data);
-      return data;
+      // Method 2: Try direct upsert on user_profiles table
+      if (!profileId) {
+        try {
+          const { data, error } = await supabase
+            .from('user_profiles')
+            .upsert({
+              user_id: userId,
+              email: profileData.email || '',
+              profile_photo: profilePhotoPath || null,
+              cover_photo: coverPhotoPath || null,
+              full_name: profileData.fullName || '',
+              birthday: birthdayDate,
+              bio: profileData.bio || '',
+              job: profileData.job || '',
+              fashion: profileData.fashion || '',
+              age: profileData.age || null,
+              relationship_status: profileData.relationshipStatus || 'prefer-not-to-say',
+              location: profileData.location || null,
+              website: profileData.website || null,
+              phone: profileData.phone || null,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id'
+            })
+            .select('id')
+            .single();
+
+          if (!error && data) {
+            console.log('Profile upserted successfully with direct query:', data);
+            profileId = data.id;
+          } else {
+            console.error('Direct upsert failed:', error);
+          }
+        } catch (directError) {
+          console.error('Direct upsert exception:', directError);
+        }
+      }
+
+      // Method 3: Try old profiles table as fallback
+      if (!profileId) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .upsert({
+              id: userId,
+              email: profileData.email || '',
+              full_name: profileData.fullName || '',
+              avatar_url: profilePhotoPath || null,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'id'
+            })
+            .select('id')
+            .single();
+
+          if (!error && data) {
+            console.log('Profile upserted successfully in old profiles table:', data);
+            profileId = data.id;
+          } else {
+            console.error('Old profiles table upsert failed:', error);
+          }
+        } catch (oldError) {
+          console.error('Old profiles table upsert exception:', oldError);
+        }
+      }
+
+      if (!profileId) {
+        throw new Error('All profile upsert methods failed');
+      }
+
+      return profileId;
     } catch (error) {
       console.error('Upsert profile failed:', error);
       throw error;
@@ -286,18 +441,58 @@ class ProfileService {
     try {
       console.log('Updating interests for user:', userId, interests);
       
-      const { error } = await supabase
-        .rpc('upsert_user_interests', {
-          profile_user_id: userId,
-          interests_array: interests
-        });
+      // Try RPC function first
+      try {
+        const { error } = await supabase
+          .rpc('upsert_user_interests', {
+            profile_user_id: userId,
+            interests_array: interests
+          });
 
-      if (error) {
-        console.error('Update interests error:', error);
-        throw new Error(`Failed to update interests: ${error.message}`);
+        if (!error) {
+          console.log('Interests updated successfully with RPC');
+          return;
+        } else {
+          console.error('RPC interests update failed:', error);
+        }
+      } catch (rpcError) {
+        console.error('RPC interests update exception:', rpcError);
       }
 
-      console.log('Interests updated successfully');
+      // Fallback: Direct database operations
+      try {
+        // Delete existing interests
+        const { error: deleteError } = await supabase
+          .from('user_interests')
+          .delete()
+          .eq('user_id', userId);
+
+        if (deleteError) {
+          console.error('Delete interests failed:', deleteError);
+        }
+
+        // Insert new interests
+        if (interests && interests.length > 0) {
+          const interestRows = interests.map(interest => ({
+            user_id: userId,
+            interest: interest
+          }));
+
+          const { error: insertError } = await supabase
+            .from('user_interests')
+            .insert(interestRows);
+
+          if (insertError) {
+            console.error('Insert interests failed:', insertError);
+            throw new Error(`Failed to update interests: ${insertError.message}`);
+          }
+        }
+
+        console.log('Interests updated successfully with direct operations');
+      } catch (directError) {
+        console.error('Direct interests update failed:', directError);
+        throw directError;
+      }
     } catch (error) {
       console.error('Update interests failed:', error);
       throw error;
@@ -408,26 +603,41 @@ class ProfileService {
         // Continue with profile deletion even if photo deletion fails
       }
 
-      // Delete interests first (due to foreign key)
-      const { error: interestsError } = await supabase
-        .from('user_interests')
-        .delete()
-        .eq('user_id', userId);
+      // Try deleting from user_profiles table first
+      try {
+        // Delete interests first (due to foreign key)
+        const { error: interestsError } = await supabase
+          .from('user_interests')
+          .delete()
+          .eq('user_id', userId);
 
-      if (interestsError) {
-        console.error('Delete interests error:', interestsError);
-        throw new Error(`Failed to delete interests: ${interestsError.message}`);
-      }
+        if (interestsError) {
+          console.error('Delete interests error:', interestsError);
+        }
 
-      // Delete profile
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('user_id', userId);
+        // Delete profile
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .delete()
+          .eq('user_id', userId);
 
-      if (profileError) {
-        console.error('Delete profile error:', profileError);
-        throw new Error(`Failed to delete profile: ${profileError.message}`);
+        if (profileError) {
+          console.error('Delete user_profiles error:', profileError);
+          
+          // Try deleting from old profiles table
+          const { error: oldProfileError } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', userId);
+
+          if (oldProfileError) {
+            console.error('Delete old profiles error:', oldProfileError);
+            throw new Error(`Failed to delete profile: ${oldProfileError.message}`);
+          }
+        }
+      } catch (deleteError) {
+        console.error('Delete profile failed:', deleteError);
+        throw deleteError;
       }
 
       console.log('Profile deleted successfully');
@@ -437,21 +647,32 @@ class ProfileService {
     }
   }
 
-  // Check if user has a profile
+  // Check if user has a profile - check both tables
   async hasProfile(userId: string): Promise<boolean> {
     try {
-      const { data, error } = await supabase
+      // Check user_profiles table first
+      const { data: newProfile, error: newError } = await supabase
         .from('user_profiles')
         .select('id')
         .eq('user_id', userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-        console.error('Check profile error:', error);
-        return false;
+      if (!newError && newProfile) {
+        return true;
       }
 
-      return !!data;
+      // Check old profiles table
+      const { data: oldProfile, error: oldError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      if (!oldError && oldProfile) {
+        return true;
+      }
+
+      return false;
     } catch (error) {
       console.error('Check profile failed:', error);
       return false;
@@ -572,6 +793,63 @@ class ProfileService {
       console.log('=== End Storage Debug ===');
     } catch (error) {
       console.error('Storage debug failed:', error);
+    }
+  }
+
+  // Debug function to check database tables and functions
+  async debugDatabase(): Promise<void> {
+    try {
+      console.log('=== Database Debug Info ===');
+      
+      // Check if user_profiles table exists
+      try {
+        const { data: userProfilesTest, error: userProfilesError } = await supabase
+          .from('user_profiles')
+          .select('count')
+          .limit(1);
+        
+        if (userProfilesError) {
+          console.error('user_profiles table not accessible:', userProfilesError);
+        } else {
+          console.log('user_profiles table is accessible');
+        }
+      } catch (error) {
+        console.error('user_profiles table test failed:', error);
+      }
+
+      // Check if old profiles table exists
+      try {
+        const { data: profilesTest, error: profilesError } = await supabase
+          .from('profiles')
+          .select('count')
+          .limit(1);
+        
+        if (profilesError) {
+          console.error('profiles table not accessible:', profilesError);
+        } else {
+          console.log('profiles table is accessible');
+        }
+      } catch (error) {
+        console.error('profiles table test failed:', error);
+      }
+
+      // Check if RPC functions exist
+      try {
+        const { data: rpcTest, error: rpcError } = await supabase
+          .rpc('get_user_profile_with_interests', { profile_user_id: '00000000-0000-0000-0000-000000000000' });
+        
+        if (rpcError && rpcError.code !== 'PGRST116') {
+          console.error('get_user_profile_with_interests RPC not available:', rpcError);
+        } else {
+          console.log('get_user_profile_with_interests RPC is available');
+        }
+      } catch (error) {
+        console.error('RPC function test failed:', error);
+      }
+
+      console.log('=== End Database Debug ===');
+    } catch (error) {
+      console.error('Database debug failed:', error);
     }
   }
 }
