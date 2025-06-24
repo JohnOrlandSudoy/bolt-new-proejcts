@@ -1,10 +1,12 @@
 import { memo } from "react";
 import { Button } from "./ui/button";
-import { Settings, Check } from "lucide-react";
+import { Settings, Check, User, LogOut } from "lucide-react";
 import { useAtom } from "jotai";
 import { screenAtom } from "@/store/screens";
 import { conversationAtom } from "@/store/conversation";
 import { settingsSavedAtom } from "@/store/settings";
+import { useAuthContext } from "./AuthProvider";
+import { motion } from "framer-motion";
 
 // Elegant NyxtGen Logo Component
 const NyxtGenLogo = ({ className = "" }: { className?: string }) => {
@@ -91,10 +93,44 @@ const NyxtGenLogo = ({ className = "" }: { className?: string }) => {
   );
 };
 
+// Premium User Info Component for Header
+const HeaderUserInfo = ({ user, onSignOut }: { user: any; onSignOut: () => void }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5 }}
+      className="flex items-center gap-3"
+    >
+      {/* User Avatar and Info */}
+      <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center">
+          <User className="size-4 text-white" />
+        </div>
+        <div className="hidden sm:block">
+          <p className="text-white font-medium text-sm leading-none">{user.email}</p>
+          <p className="text-emerald-300 text-xs mt-0.5">Authenticated</p>
+        </div>
+      </div>
+
+      {/* Sign Out Button */}
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={onSignOut}
+        className="relative size-12 border-red-500/30 bg-red-500/10 hover:bg-red-500/20 backdrop-blur-sm transition-all duration-200 hover:border-red-500/50 hover:shadow-lg hover:shadow-red-500/20"
+      >
+        <LogOut className="size-5 text-red-300 hover:text-red-200 transition-colors" />
+      </Button>
+    </motion.div>
+  );
+};
+
 export const Header = memo(() => {
   const [, setScreenState] = useAtom(screenAtom);
   const [conversation] = useAtom(conversationAtom);
   const [settingsSaved] = useAtom(settingsSavedAtom);
+  const { user, signOut } = useAuthContext();
 
   const handleSettings = () => {
     if (!conversation) {
@@ -102,24 +138,35 @@ export const Header = memo(() => {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    setScreenState({ currentScreen: "home" });
+  };
+
   return (
     <header className="flex w-full items-center justify-between" style={{ fontFamily: 'Inter, sans-serif' }}>
       <NyxtGenLogo />
       
-      <div className="relative">
-        {settingsSaved && (
-          <div className="absolute -top-2 -right-2 z-20 rounded-full bg-emerald-500 p-1 animate-fade-in shadow-lg shadow-emerald-500/50">
-            <Check className="size-3 text-white" />
-          </div>
-        )}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleSettings}
-          className="relative size-12 border-slate-700/50 bg-slate-900/50 hover:bg-slate-800/70 backdrop-blur-sm transition-all duration-200 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/20"
-        >
-          <Settings className="size-5 text-slate-300 hover:text-cyan-400 transition-colors" />
-        </Button>
+      <div className="flex items-center gap-4">
+        {/* User Info (if authenticated) */}
+        {user && <HeaderUserInfo user={user} onSignOut={handleSignOut} />}
+        
+        {/* Settings Button */}
+        <div className="relative">
+          {settingsSaved && (
+            <div className="absolute -top-2 -right-2 z-20 rounded-full bg-emerald-500 p-1 animate-fade-in shadow-lg shadow-emerald-500/50">
+              <Check className="size-3 text-white" />
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleSettings}
+            className="relative size-12 border-slate-700/50 bg-slate-900/50 hover:bg-slate-800/70 backdrop-blur-sm transition-all duration-200 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/20"
+          >
+            <Settings className="size-5 text-slate-300 hover:text-cyan-400 transition-colors" />
+          </Button>
+        </div>
       </div>
     </header>
   );
