@@ -1,6 +1,7 @@
 import { atom } from "jotai";
 
 export type Screen =
+  | "home"
   | "introLoading"
   | "outage"
   | "outOfMinutes"
@@ -19,7 +20,7 @@ interface ScreenState {
 }
 
 const initialScreenState: ScreenState = {
-  currentScreen: "introLoading",
+  currentScreen: "home",
 };
 
 export const screenAtom = atom<ScreenState>(initialScreenState);

@@ -1,3 +1,4 @@
+export { Home } from "./Home";
 export { IntroLoading } from "./IntroLoading";
 export { Outage } from "./Outage";
 export { OutOfMinutes } from "./OutOfMinutes";

@@ -3,6 +3,7 @@ import { screenAtom } from "./store/screens";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import {
+  Home,
   IntroLoading,
   Outage,
   OutOfMinutes,
@@ -18,6 +19,8 @@ function App() {
 
   const renderScreen = () => {
     switch (currentScreen) {
+      case "home":
+        return <Home />;
       case "introLoading":
         return <IntroLoading />;
       case "outage":
@@ -35,15 +38,15 @@ function App() {
       case "finalScreen":
         return <FinalScreen />;
       default:
-        return <IntroLoading />;
+        return <Home />;
     }
   };
 
   return (
     <main className="flex h-svh flex-col items-center justify-between gap-3 p-5 sm:gap-4 lg:p-8 bg-black">
-      {currentScreen !== "introLoading" && <Header />}
+      {currentScreen !== "introLoading" && currentScreen !== "home" && <Header />}
       {renderScreen()}
-      {currentScreen !== "introLoading" && <Footer />}
+      {currentScreen !== "introLoading" && currentScreen !== "home" && <Footer />}
     </main>
   );
 }
