@@ -33,9 +33,13 @@ import {
   Trash2,
   Loader2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Database,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import { cn } from "@/utils";
+import { testDatabaseConnection, checkUserAuth } from "@/lib/supabase";
 
 // Enhanced Button Component
 const Button = React.forwardRef<
@@ -257,7 +261,7 @@ const PhotoUpload = ({
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        console.log('Image uploaded, size:', result.length);
+        console.log('📸 Image uploaded, size:', result.length);
         onPhotoChange(result);
       };
       reader.readAsDataURL(file);
@@ -265,7 +269,7 @@ const PhotoUpload = ({
   };
 
   const handleRemovePhoto = () => {
-    console.log('Removing photo');
+    console.log('🗑️ Removing photo');
     onPhotoChange("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -348,7 +352,7 @@ const InterestTags = ({
   const addInterest = () => {
     if (newInterest.trim() && !interests.includes(newInterest.trim())) {
       const updatedInterests = [...interests, newInterest.trim()];
-      console.log('Adding interest:', newInterest.trim());
+      console.log('➕ Adding interest:', newInterest.trim());
       onInterestsChange(updatedInterests);
       setNewInterest("");
     }
@@ -356,7 +360,7 @@ const InterestTags = ({
 
   const removeInterest = (interest: string) => {
     const updatedInterests = interests.filter(i => i !== interest);
-    console.log('Removing interest:', interest);
+    console.log('➖ Removing interest:', interest);
     onInterestsChange(updatedInterests);
   };
 
@@ -471,19 +475,21 @@ const StatusMessage = ({
   type, 
   message 
 }: { 
-  type: "success" | "error" | "info"; 
+  type: "success" | "error" | "info" | "warning"; 
   message: string; 
 }) => {
   const icons = {
     success: CheckCircle,
     error: AlertCircle,
-    info: Loader2
+    info: Loader2,
+    warning: AlertCircle
   };
   
   const colors = {
     success: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
     error: "text-red-400 border-red-500/30 bg-red-500/10",
-    info: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10"
+    info: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10",
+    warning: "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"
   };
   
   const Icon = icons[type];
@@ -503,6 +509,68 @@ const StatusMessage = ({
   );
 };
 
+// Database Status Component
+const DatabaseStatus = () => {
+  const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [userStatus, setUserStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      console.log('🔍 Checking database and user status...');
+      
+      // Check database connection
+      const dbConnected = await testDatabaseConnection();
+      setDbStatus(dbConnected ? 'connected' : 'disconnected');
+      
+      // Check user authentication
+      const user = await checkUserAuth();
+      setUserStatus(user ? 'authenticated' : 'unauthenticated');
+    };
+
+    checkStatus();
+  }, []);
+
+  return (
+    <div className="flex items-center gap-4 text-xs">
+      <div className="flex items-center gap-2">
+        {dbStatus === 'checking' ? (
+          <Loader2 className="size-3 animate-spin text-yellow-400" />
+        ) : dbStatus === 'connected' ? (
+          <Database className="size-3 text-emerald-400" />
+        ) : (
+          <Database className="size-3 text-red-400" />
+        )}
+        <span className={cn(
+          "font-medium",
+          dbStatus === 'connected' ? "text-emerald-400" : 
+          dbStatus === 'disconnected' ? "text-red-400" : "text-yellow-400"
+        )}>
+          DB: {dbStatus === 'checking' ? 'Checking...' : 
+               dbStatus === 'connected' ? 'Connected' : 'Disconnected'}
+        </span>
+      </div>
+      
+      <div className="flex items-center gap-2">
+        {userStatus === 'checking' ? (
+          <Loader2 className="size-3 animate-spin text-yellow-400" />
+        ) : userStatus === 'authenticated' ? (
+          <Wifi className="size-3 text-emerald-400" />
+        ) : (
+          <WifiOff className="size-3 text-red-400" />
+        )}
+        <span className={cn(
+          "font-medium",
+          userStatus === 'authenticated' ? "text-emerald-400" : 
+          userStatus === 'unauthenticated' ? "text-red-400" : "text-yellow-400"
+        )}>
+          Auth: {userStatus === 'checking' ? 'Checking...' : 
+                userStatus === 'authenticated' ? 'Authenticated' : 'Not Authenticated'}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 export const Profile: React.FC = () => {
   const [profile, setProfile] = useAtom(userProfileAtom);
   const [, setScreenState] = useAtom(screenAtom);
@@ -512,7 +580,7 @@ export const Profile: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{
-    type: "success" | "error" | "info" | null;
+    type: "success" | "error" | "info" | "warning" | null;
     message: string;
   }>({ type: null, message: "" });
 
@@ -525,7 +593,7 @@ export const Profile: React.FC = () => {
   // Load profile data when component mounts
   useEffect(() => {
     if (user?.id && isAuthenticated) {
-      console.log('Component mounted, loading profile for user:', user.id);
+      console.log('🚀 Component mounted, loading profile for user:', user.id);
       const store = getDefaultStore();
       store.set(loadProfileAtom, user.id);
     }
@@ -564,16 +632,29 @@ export const Profile: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!validateForm()) return;
+    console.log('💾 Save button clicked');
+    
+    if (!validateForm()) {
+      console.log('❌ Form validation failed');
+      setSaveStatus({ 
+        type: "error", 
+        message: "Please fix the errors above before saving." 
+      });
+      return;
+    }
 
     setIsSaving(true);
-    setSaveStatus({ type: "info", message: "Saving your profile..." });
+    setSaveStatus({ type: "info", message: "Saving your profile to database..." });
     
     try {
-      console.log('Starting profile save process...');
-      console.log('Current profile data:', profile);
-      console.log('User ID:', user?.id);
-      console.log('User email:', user?.email);
+      console.log('🔄 Starting profile save process...');
+      console.log('📝 Current profile data:', profile);
+      console.log('👤 User ID:', user?.id);
+      console.log('📧 User email:', user?.email);
+      
+      if (!user?.id) {
+        throw new Error('User ID is required for saving to database');
+      }
       
       // Ensure we have the user's email and required data
       const updatedProfile = {
@@ -582,44 +663,44 @@ export const Profile: React.FC = () => {
         updatedAt: new Date().toISOString(),
       };
       
-      console.log('Updated profile data:', updatedProfile);
+      console.log('📋 Updated profile data:', updatedProfile);
       
       // Update the profile atom first
       setProfile(updatedProfile);
       
-      if (user?.id) {
-        console.log('Attempting to save to Supabase...');
-        
-        // Save to Supabase using the store action
-        const store = getDefaultStore();
-        await store.set(saveProfileAtom, user.id);
-        
-        console.log('Profile saved successfully to Supabase!');
-        
-        setSaveStatus({ 
-          type: "success", 
-          message: "Profile saved successfully to cloud!" 
-        });
-      } else {
-        console.log('No user ID, saving to localStorage only');
-        
-        // Fallback to localStorage only
-        localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
-        setProfileSaved(true);
-        
-        setSaveStatus({ 
-          type: "success", 
-          message: "Profile saved locally!" 
-        });
-      }
+      console.log('💾 Attempting to save to Supabase database...');
+      
+      // Save to Supabase using the store action
+      const store = getDefaultStore();
+      await store.set(saveProfileAtom, user.id);
+      
+      console.log('✅ Profile saved successfully to Supabase database!');
+      
+      setSaveStatus({ 
+        type: "success", 
+        message: "✅ Profile saved successfully to database! Data will persist on reload." 
+      });
       
       // Close after a brief delay to show success message
       setTimeout(() => {
         handleClose();
-      }, 1500);
+      }, 2000);
       
     } catch (error) {
-      console.error('Error saving profile:', error);
+      console.error('❌ Error saving profile:', error);
+      
+      // Provide detailed error information
+      let errorMessage = "Failed to save to database. ";
+      
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+        errorMessage += error.message;
+      } else {
+        errorMessage += "Unknown error occurred.";
+      }
       
       // Even if Supabase fails, save to localStorage
       const updatedProfile = {
@@ -632,21 +713,21 @@ export const Profile: React.FC = () => {
       setProfileSaved(true);
       
       setSaveStatus({ 
-        type: "error", 
-        message: "Saved locally, but cloud sync failed. Will retry next time." 
+        type: "warning", 
+        message: `⚠️ Saved locally only. Database error: ${errorMessage}` 
       });
       
       // Still close after showing error
       setTimeout(() => {
         handleClose();
-      }, 2000);
+      }, 3000);
     } finally {
       setIsSaving(false);
     }
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
-    console.log('Updating profile with:', updates);
+    console.log('🔄 Updating profile with:', updates);
     const store = getDefaultStore();
     store.set(updateProfileAtom, updates);
     
@@ -665,8 +746,9 @@ export const Profile: React.FC = () => {
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-white text-lg">
-            {isLoading ? "Verifying access..." : "Loading profile..."}
+            {isLoading ? "Verifying access..." : "Loading profile from database..."}
           </p>
+          <DatabaseStatus />
         </div>
       </div>
     );
@@ -691,6 +773,7 @@ export const Profile: React.FC = () => {
               <div>
                 <h1 className="text-2xl font-bold text-white mb-1">Create Your Profile</h1>
                 <p className="text-sm text-slate-300">Tell us about yourself to personalize your AI experience</p>
+                <DatabaseStatus />
               </div>
             </div>
             <Button
@@ -914,8 +997,8 @@ export const Profile: React.FC = () => {
               <div className="space-y-1 text-slate-400">
                 <p>• All fields are optional except your name</p>
                 <p>• Your profile helps personalize AI conversations</p>
-                <p>• Data is stored securely in the cloud and locally</p>
-                <p>• Changes are saved automatically as you type</p>
+                <p>• Data is saved to Supabase database and persists on reload</p>
+                <p>• Changes are automatically backed up locally as you type</p>
               </div>
             </div>
             <div className="flex gap-3 w-full lg:w-auto">
@@ -936,12 +1019,12 @@ export const Profile: React.FC = () => {
                 {isSaving ? (
                   <>
                     <Loader2 className="size-4 mr-2 animate-spin" />
-                    Saving...
+                    Saving to DB...
                   </>
                 ) : (
                   <>
                     <Save className="size-4 mr-2" />
-                    Save Profile
+                    Save to Database
                   </>
                 )}
               </Button>
