@@ -85,7 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Creating/updating profile for user:', user.id);
       
       // Wait a bit for the database trigger to complete
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Check if profile already exists in user_profiles table
       const { data: existingProfile, error: checkError } = await supabase
@@ -106,6 +106,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (oldCheckError && oldCheckError.code !== 'PGRST116') {
           console.error('Error checking old profiles table:', oldCheckError);
+          // Try to create profile manually
+          await createProfileManually(user);
           return;
         }
 
@@ -121,101 +123,106 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       console.log('Creating new profile for user:', user.id);
-
-      // Try multiple methods to create profile
-      let profileCreated = false;
-
-      // Method 1: Try using the RPC function
-      try {
-        const { data: rpcResult, error: rpcError } = await supabase
-          .rpc('upsert_user_profile', {
-            profile_user_id: user.id,
-            profile_email: user.email || '',
-            full_name: user.user_metadata?.full_name || '',
-            profile_photo: null,
-            cover_photo: null,
-            birthday: null,
-            bio: '',
-            job: '',
-            fashion: '',
-            age: null,
-            relationship_status: 'prefer-not-to-say',
-            location: null,
-            website: null,
-            phone: null
-          });
-
-        if (!rpcError && rpcResult) {
-          console.log('Profile created successfully with RPC function:', rpcResult);
-          profileCreated = true;
-        } else {
-          console.error('RPC function failed:', rpcError);
-        }
-      } catch (rpcException) {
-        console.error('RPC function exception:', rpcException);
-      }
-
-      // Method 2: Try direct insert into user_profiles table
-      if (!profileCreated) {
-        try {
-          const { data: insertResult, error: insertError } = await supabase
-            .from('user_profiles')
-            .insert({
-              user_id: user.id,
-              email: user.email || '',
-              full_name: user.user_metadata?.full_name || '',
-              bio: '',
-              job: '',
-              fashion: '',
-              relationship_status: 'prefer-not-to-say'
-            })
-            .select()
-            .single();
-
-          if (!insertError && insertResult) {
-            console.log('Profile created successfully with direct insert:', insertResult);
-            profileCreated = true;
-          } else {
-            console.error('Direct insert failed:', insertError);
-          }
-        } catch (insertException) {
-          console.error('Direct insert exception:', insertException);
-        }
-      }
-
-      // Method 3: Try inserting into old profiles table as fallback
-      if (!profileCreated) {
-        try {
-          const { data: oldInsertResult, error: oldInsertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: user.id,
-              email: user.email || '',
-              full_name: user.user_metadata?.full_name || '',
-              avatar_url: user.user_metadata?.avatar_url || null,
-              updated_at: new Date().toISOString(),
-            })
-            .select()
-            .single();
-
-          if (!oldInsertError && oldInsertResult) {
-            console.log('Profile created successfully in old profiles table:', oldInsertResult);
-            profileCreated = true;
-          } else {
-            console.error('Old profiles table insert failed:', oldInsertError);
-          }
-        } catch (oldInsertException) {
-          console.error('Old profiles table insert exception:', oldInsertException);
-        }
-      }
-
-      if (!profileCreated) {
-        console.error('All profile creation methods failed for user:', user.id);
-        // Don't throw error - user is still authenticated
-      }
+      await createProfileManually(user);
 
     } catch (error) {
       console.error('Error in createOrUpdateProfile:', error);
+      // Don't throw error - user is still authenticated
+    }
+  };
+
+  const createProfileManually = async (user: User) => {
+    console.log('Creating profile manually for user:', user.id);
+    
+    // Try multiple methods to create profile
+    let profileCreated = false;
+
+    // Method 1: Try using the RPC function
+    try {
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('upsert_user_profile', {
+          profile_user_id: user.id,
+          profile_email: user.email || '',
+          full_name: user.user_metadata?.full_name || '',
+          profile_photo: null,
+          cover_photo: null,
+          birthday: null,
+          bio: '',
+          job: '',
+          fashion: '',
+          age: null,
+          relationship_status: 'prefer-not-to-say',
+          location: null,
+          website: null,
+          phone: null
+        });
+
+      if (!rpcError && rpcResult) {
+        console.log('Profile created successfully with RPC function:', rpcResult);
+        profileCreated = true;
+      } else {
+        console.error('RPC function failed:', rpcError);
+      }
+    } catch (rpcException) {
+      console.error('RPC function exception:', rpcException);
+    }
+
+    // Method 2: Try direct insert into user_profiles table
+    if (!profileCreated) {
+      try {
+        const { data: insertResult, error: insertError } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email || '',
+            full_name: user.user_metadata?.full_name || '',
+            bio: '',
+            job: '',
+            fashion: '',
+            relationship_status: 'prefer-not-to-say'
+          })
+          .select()
+          .single();
+
+        if (!insertError && insertResult) {
+          console.log('Profile created successfully with direct insert:', insertResult);
+          profileCreated = true;
+        } else {
+          console.error('Direct insert failed:', insertError);
+        }
+      } catch (insertException) {
+        console.error('Direct insert exception:', insertException);
+      }
+    }
+
+    // Method 3: Try inserting into old profiles table as fallback
+    if (!profileCreated) {
+      try {
+        const { data: oldInsertResult, error: oldInsertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email || '',
+            full_name: user.user_metadata?.full_name || '',
+            avatar_url: user.user_metadata?.avatar_url || null,
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (!oldInsertError && oldInsertResult) {
+          console.log('Profile created successfully in old profiles table:', oldInsertResult);
+          profileCreated = true;
+        } else {
+          console.error('Old profiles table insert failed:', oldInsertError);
+        }
+      } catch (oldInsertException) {
+        console.error('Old profiles table insert exception:', oldInsertException);
+      }
+    }
+
+    if (!profileCreated) {
+      console.error('All profile creation methods failed for user:', user.id);
       // Don't throw error - user is still authenticated
     }
   };
@@ -224,7 +231,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Starting sign up process for:', email);
       
-      // Use a more robust signup approach that handles database errors gracefully
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -239,35 +245,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('Sign up error:', error);
-        
-        // Handle specific database errors more gracefully
-        if (error.message.includes('Database error')) {
-          // The user was created but profile creation failed
-          // This is actually okay - we can create the profile later
-          console.log('User created but profile creation failed - this is recoverable');
-          
-          // Check if the user was actually created
-          if (data.user) {
-            console.log('User was created successfully despite database error');
-            setUser(data.user);
-            setSession(data.session);
-            
-            // Try to create profile in background
-            setTimeout(() => {
-              createOrUpdateProfile(data.user).catch(console.error);
-            }, 3000);
-            
-            // Return success with a note about profile creation
-            return { 
-              user: data.user, 
-              error: {
-                ...error,
-                message: 'Account created successfully! Profile setup can be completed later.'
-              } as AuthError
-            };
-          }
-        }
-        
         return { user: null, error };
       }
 
