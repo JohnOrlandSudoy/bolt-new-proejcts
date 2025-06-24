@@ -1,10 +1,11 @@
 import { memo } from "react";
 import { Button } from "./ui/button";
-import { Settings, Check, User, LogOut } from "lucide-react";
+import { Settings, Check, User, LogOut, UserCircle } from "lucide-react";
 import { useAtom } from "jotai";
 import { screenAtom } from "@/store/screens";
 import { conversationAtom } from "@/store/conversation";
 import { settingsSavedAtom } from "@/store/settings";
+import { profileSavedAtom } from "@/store/profile";
 import { useAuthContext } from "./AuthProvider";
 import { motion } from "framer-motion";
 
@@ -130,11 +131,18 @@ export const Header = memo(() => {
   const [, setScreenState] = useAtom(screenAtom);
   const [conversation] = useAtom(conversationAtom);
   const [settingsSaved] = useAtom(settingsSavedAtom);
+  const [profileSaved] = useAtom(profileSavedAtom);
   const { user, signOut } = useAuthContext();
 
   const handleSettings = () => {
     if (!conversation) {
       setScreenState({ currentScreen: "settings" });
+    }
+  };
+
+  const handleProfile = () => {
+    if (!conversation) {
+      setScreenState({ currentScreen: "profile" });
     }
   };
 
@@ -158,6 +166,23 @@ export const Header = memo(() => {
       <div className="flex items-center gap-4">
         {/* User Info (if authenticated) */}
         {user && <HeaderUserInfo user={user} onSignOut={handleSignOut} />}
+        
+        {/* Profile Button */}
+        <div className="relative">
+          {profileSaved && (
+            <div className="absolute -top-2 -right-2 z-20 rounded-full bg-emerald-500 p-1 animate-fade-in shadow-lg shadow-emerald-500/50">
+              <Check className="size-3 text-white" />
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleProfile}
+            className="relative size-12 border-slate-700/50 bg-slate-900/50 hover:bg-slate-800/70 backdrop-blur-sm transition-all duration-200 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20"
+          >
+            <UserCircle className="size-5 text-slate-300 hover:text-purple-400 transition-colors" />
+          </Button>
+        </div>
         
         {/* Settings Button */}
         <div className="relative">

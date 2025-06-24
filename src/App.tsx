@@ -13,6 +13,7 @@ import {
   FinalScreen,
   Settings,
   Auth,
+  Profile,
 } from "./screens";
 
 function App() {
@@ -40,6 +41,8 @@ function App() {
         return <FinalScreen />;
       case "auth":
         return <Auth />;
+      case "profile":
+        return <Profile />;
       default:
         return <Home />;
     }
@@ -47,9 +50,9 @@ function App() {
 
   return (
     <main className="flex h-svh flex-col items-center justify-between gap-3 p-5 sm:gap-4 lg:p-8 bg-black">
-      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && <Header />}
+      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && currentScreen !== "profile" && <Header />}
       {renderScreen()}
-      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && <Footer />}
+      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && currentScreen !== "profile" && <Footer />}
     </main>
   );
 }
