@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAtom } from 'jotai';
 import { screenAtom } from '@/store/screens';
@@ -177,7 +177,7 @@ const ErrorMessage = ({ message }: { message: string }) => (
 
 export const Auth: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
-  const { signIn, signUp, loading } = useAuthContext();
+  const { signIn, signUp, user } = useAuthContext();
   
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -190,6 +190,14 @@ export const Auth: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Auto-redirect if user becomes authenticated
+  useEffect(() => {
+    if (user && !isSubmitting) {
+      // Immediate redirect when user is authenticated
+      setScreenState({ currentScreen: "intro" });
+    }
+  }, [user, setScreenState, isSubmitting]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -241,11 +249,8 @@ export const Auth: React.FC = () => {
         if (error) {
           setErrors({ submit: error.message });
         } else if (user) {
-          setSuccessMessage('Account created successfully! Welcome to NyxtGen!');
-          // Redirect to intro screen after successful signup
-          setTimeout(() => {
-            setScreenState({ currentScreen: "intro" });
-          }, 1500);
+          setSuccessMessage('Account created successfully! Redirecting...');
+          // The useEffect will handle the redirect when user state updates
         }
       } else {
         const { user, error } = await signIn(formData.email, formData.password);
@@ -254,10 +259,7 @@ export const Auth: React.FC = () => {
           setErrors({ submit: error.message });
         } else if (user) {
           setSuccessMessage('Welcome back! Redirecting...');
-          // Redirect to intro screen after successful login
-          setTimeout(() => {
-            setScreenState({ currentScreen: "intro" });
-          }, 1500);
+          // The useEffect will handle the redirect when user state updates
         }
       }
     } catch (error) {

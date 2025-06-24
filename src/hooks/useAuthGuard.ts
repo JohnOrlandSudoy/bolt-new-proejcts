@@ -21,14 +21,19 @@ export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
 
   useEffect(() => {
     // Only redirect if we're not loading and there's no user
+    // Add a small delay to prevent flashing during rapid auth state changes
     if (!loading && !user) {
-      if (onUnauthorized) {
-        onUnauthorized();
-      } else if (showAuthModal) {
-        setScreenState({ currentScreen: "auth" });
-      } else {
-        setScreenState({ currentScreen: redirectTo as any });
-      }
+      const timeoutId = setTimeout(() => {
+        if (onUnauthorized) {
+          onUnauthorized();
+        } else if (showAuthModal) {
+          setScreenState({ currentScreen: "auth" });
+        } else {
+          setScreenState({ currentScreen: redirectTo as any });
+        }
+      }, 100); // Small delay to prevent flashing
+
+      return () => clearTimeout(timeoutId);
     }
   }, [user, loading, redirectTo, showAuthModal, onUnauthorized, setScreenState]);
 

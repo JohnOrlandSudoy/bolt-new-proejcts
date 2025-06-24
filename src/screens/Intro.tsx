@@ -148,9 +148,9 @@ export const Intro: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [token, setToken] = useAtom(apiTokenAtom);
   const [showPassword, setShowPassword] = useState(false);
-  const { user, signOut } = useAuthContext();
+  const { user } = useAuthContext();
   
-  // Enforce authentication for this screen
+  // Enforce authentication for this screen with optimized loading
   const { isAuthenticated, isLoading } = useAuthGuard({
     showAuthModal: true,
     redirectTo: "auth"
@@ -176,13 +176,13 @@ export const Intro: React.FC = () => {
     localStorage.setItem('tavus-token', newToken);
   };
 
-  // Show loading while checking authentication - but only for initial load
+  // Show minimal loading only for initial authentication check
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-white text-lg">Loading...</p>
+          <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-white text-sm">Loading...</p>
         </div>
       </div>
     );

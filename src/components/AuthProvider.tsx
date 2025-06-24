@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session with faster timeout
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -45,37 +45,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('Error in getInitialSession:', error);
       } finally {
+        // Set loading to false immediately after initial check
         setLoading(false);
       }
     };
 
     getInitialSession();
 
-    // Listen for auth changes
+    // Listen for auth changes with optimized handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         
+        // Immediately update state for faster UI response
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Only set loading to false if we're not already loaded
-        // This prevents the loading state from flickering during sign out
-        if (loading) {
-          setLoading(false);
-        }
-
-        // Handle user profile creation/update for signed in users
+        // Only handle profile creation for successful sign-ins
         if (event === 'SIGNED_IN' && session?.user) {
-          await createOrUpdateProfile(session.user);
+          // Don't await this - let it happen in background
+          createOrUpdateProfile(session.user).catch(console.error);
         }
+        
+        // Ensure loading is false after any auth state change
+        setLoading(false);
       }
     );
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [loading]);
+  }, []);
 
   const createOrUpdateProfile = async (user: User) => {
     try {
@@ -116,7 +116,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { user: null, error };
       }
 
-      // Since email confirmation is disabled, user should be signed in immediately
+      // Immediately update local state for instant UI feedback
+      if (data.user) {
+        setUser(data.user);
+        setSession(data.session);
+      }
+
       return { user: data.user, error: null };
     } catch (error) {
       console.error('Sign up exception:', error);
@@ -136,6 +141,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { user: null, error };
       }
 
+      // Immediately update local state for instant UI feedback
+      if (data.user && data.session) {
+        setUser(data.user);
+        setSession(data.session);
+        setLoading(false);
+      }
+
       return { user: data.user, error: null };
     } catch (error) {
       console.error('Sign in exception:', error);
@@ -149,13 +161,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       setSession(null);
       
-      // Then perform the actual sign out
+      // Then perform the actual sign out in background
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Sign out error:', error);
-        // If sign out failed, we might want to restore the session
-        // but for now, we'll keep the user signed out locally
         return { error };
       }
 
