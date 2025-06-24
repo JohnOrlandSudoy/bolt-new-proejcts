@@ -16,9 +16,22 @@ import {
   Profile,
   Chat,
 } from "./screens";
+import { useState, useEffect } from "react";
 
 function App() {
   const [{ currentScreen }] = useAtom(screenAtom);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -54,9 +67,11 @@ function App() {
   const showHeaderFooter = !["introLoading", "home", "auth", "profile", "chat"].includes(currentScreen);
 
   return (
-    <main className="flex h-svh flex-col items-center justify-between gap-3 p-5 sm:gap-4 lg:p-8 bg-black">
+    <main className={`flex h-svh flex-col items-center justify-between bg-black ${isMobile ? 'p-3' : 'gap-3 p-5 sm:gap-4 lg:p-8'}`}>
       {showHeaderFooter && <Header />}
-      {renderScreen()}
+      <div className="flex-1 w-full flex items-center justify-center">
+        {renderScreen()}
+      </div>
       {showHeaderFooter && <Footer />}
     </main>
   );

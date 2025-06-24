@@ -78,7 +78,7 @@ input::placeholder {
   font-family: 'Source Code Pro', monospace;
 }
 
-/* Mobile-specific optimizations */
+/* Enhanced mobile-specific optimizations */
 @media (max-width: 768px) {
   /* Prevent zoom on input focus for iOS */
   input[type="text"],
@@ -87,6 +87,7 @@ input::placeholder {
   input[type="search"],
   textarea {
     font-size: 16px !important;
+    transform: none !important;
   }
   
   /* Better touch targets */
@@ -101,6 +102,7 @@ input::placeholder {
   /* Smooth scrolling for mobile */
   .overflow-y-auto {
     -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
   
   /* Hide scrollbars on mobile for cleaner look */
@@ -112,10 +114,37 @@ input::placeholder {
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  /* Optimize text rendering on mobile */
+  body {
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Better tap highlighting */
+  * {
+    -webkit-tap-highlight-color: rgba(6, 182, 212, 0.2);
+  }
+
+  /* Prevent horizontal scroll */
+  html, body {
+    overflow-x: hidden;
+  }
+}
+
+/* Enhanced tablet optimizations */
+@media (min-width: 769px) and (max-width: 1023px) {
+  /* Tablet-specific touch targets */
+  button, 
+  [role="button"] {
+    min-height: 40px;
+    min-width: 40px;
+  }
 }
 
 /* Custom scrollbar for desktop */
-@media (min-width: 769px) {
+@media (min-width: 1024px) {
   .overflow-y-auto::-webkit-scrollbar {
     width: 6px;
   }
@@ -135,7 +164,7 @@ input::placeholder {
   }
 }
 
-/* Animation improvements */
+/* Enhanced animation improvements */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -147,11 +176,56 @@ input::placeholder {
   }
 }
 
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .animate-fade-in-up {
   animation: fadeInUp 0.3s ease-out;
 }
 
-/* Focus improvements for accessibility */
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* Enhanced focus improvements for accessibility */
 .focus-visible\:ring-2:focus-visible {
   outline: 2px solid transparent;
   outline-offset: 2px;
@@ -168,7 +242,7 @@ input::placeholder {
   touch-action: manipulation;
 }
 
-/* Safe area handling for mobile devices */
+/* Enhanced safe area handling for mobile devices */
 @supports (padding: max(0px)) {
   .safe-area-inset-top {
     padding-top: max(1rem, env(safe-area-inset-top));
@@ -185,4 +259,80 @@ input::placeholder {
   .safe-area-inset-right {
     padding-right: max(1rem, env(safe-area-inset-right));
   }
+}
+
+/* Enhanced gradient text utilities */
+.gradient-text-primary {
+  background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-text-secondary {
+  background: linear-gradient(135deg, #10b981, #06b6d4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Enhanced glass morphism utilities */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-morphism-strong {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Enhanced loading states */
+.loading-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Enhanced responsive typography */
+@media (max-width: 640px) {
+  .responsive-text-xs { font-size: 0.75rem; }
+  .responsive-text-sm { font-size: 0.875rem; }
+  .responsive-text-base { font-size: 1rem; }
+  .responsive-text-lg { font-size: 1.125rem; }
+  .responsive-text-xl { font-size: 1.25rem; }
+  .responsive-text-2xl { font-size: 1.5rem; }
+  .responsive-text-3xl { font-size: 1.875rem; }
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+  .responsive-text-xs { font-size: 0.875rem; }
+  .responsive-text-sm { font-size: 1rem; }
+  .responsive-text-base { font-size: 1.125rem; }
+  .responsive-text-lg { font-size: 1.25rem; }
+  .responsive-text-xl { font-size: 1.5rem; }
+  .responsive-text-2xl { font-size: 1.875rem; }
+  .responsive-text-3xl { font-size: 2.25rem; }
+}
+
+/* Enhanced container queries support */
+@container (max-width: 400px) {
+  .container-text-sm { font-size: 0.875rem; }
+  .container-p-2 { padding: 0.5rem; }
+}
+
+@container (min-width: 401px) {
+  .container-text-sm { font-size: 1rem; }
+  .container-p-2 { padding: 1rem; }
 }
