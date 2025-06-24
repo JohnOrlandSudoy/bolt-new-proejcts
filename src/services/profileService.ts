@@ -98,10 +98,11 @@ class ProfileService {
     try {
       console.log('Starting photo upload:', { fileName: file.name, fileType: file.type, fileSize: file.size, bucket, userId });
       
-      // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-      if (!allowedTypes.includes(file.type)) {
-        throw new Error('Invalid file type. Please upload a JPEG, PNG, WebP, or GIF image.');
+      // Validate file type - FIXED: More comprehensive validation
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        console.error('Invalid file type:', file.type, 'Allowed types:', allowedTypes);
+        throw new Error(`Invalid file type: ${file.type}. Please upload a JPEG, PNG, WebP, or GIF image.`);
       }
 
       // Validate file size (5MB limit)
@@ -110,7 +111,7 @@ class ProfileService {
         throw new Error('File size too large. Please upload an image smaller than 5MB.');
       }
 
-      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${bucket}/${userId}/${fileName}`;
 
@@ -161,6 +162,8 @@ class ProfileService {
       const mimeType = base64Parts[0].match(/data:([^;]+)/)?.[1] || 'image/jpeg';
       const base64String = base64Parts[1];
       
+      console.log('Detected MIME type:', mimeType);
+      
       // Convert base64 to blob
       const byteCharacters = atob(base64String);
       const byteNumbers = new Array(byteCharacters.length);
@@ -171,7 +174,8 @@ class ProfileService {
       const blob = new Blob([byteArray], { type: mimeType });
       
       // Create file from blob
-      const file = new File([blob], `photo.${mimeType.split('/')[1]}`, { type: mimeType });
+      const fileExtension = mimeType.split('/')[1] || 'jpg';
+      const file = new File([blob], `photo.${fileExtension}`, { type: mimeType });
       
       console.log('File created from base64:', { name: file.name, size: file.size, type: file.type });
       
@@ -730,28 +734,60 @@ class ProfileService {
     }
   }
 
-  // Validate image data before processing
+  // FIXED: Validate image data before processing - now properly validates all image types
   validateImageData(imageData: string): boolean {
-    if (!imageData) return false;
+    if (!imageData) {
+      console.log('validateImageData: No image data provided');
+      return false;
+    }
     
     // Check if it's a valid base64 data URL
     if (imageData.startsWith('data:image/')) {
       const base64Parts = imageData.split(',');
-      return base64Parts.length === 2 && base64Parts[1].length > 0;
+      if (base64Parts.length !== 2 || base64Parts[1].length === 0) {
+        console.error('validateImageData: Invalid base64 format');
+        return false;
+      }
+      
+      // Extract and validate MIME type
+      const mimeTypeMatch = base64Parts[0].match(/data:([^;]+)/);
+      if (!mimeTypeMatch) {
+        console.error('validateImageData: Could not extract MIME type');
+        return false;
+      }
+      
+      const mimeType = mimeTypeMatch[1].toLowerCase();
+      const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      
+      if (!allowedMimeTypes.includes(mimeType)) {
+        console.error('validateImageData: Invalid MIME type:', mimeType, 'Allowed:', allowedMimeTypes);
+        return false;
+      }
+      
+      console.log('validateImageData: Valid base64 image data with MIME type:', mimeType);
+      return true;
     }
     
     // Check if it's a valid URL
     if (imageData.startsWith('http')) {
       try {
         new URL(imageData);
+        console.log('validateImageData: Valid HTTP URL');
         return true;
       } catch {
+        console.error('validateImageData: Invalid URL format');
         return false;
       }
     }
     
     // Check if it's a valid storage path
-    return imageData.includes('/') && imageData.length > 0;
+    if (imageData.includes('/') && imageData.length > 0) {
+      console.log('validateImageData: Valid storage path');
+      return true;
+    }
+    
+    console.error('validateImageData: Unknown image data format:', imageData.substring(0, 50));
+    return false;
   }
 
   // Debug function to check storage bucket configuration

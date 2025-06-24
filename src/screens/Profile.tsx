@@ -233,7 +233,7 @@ const Label = React.forwardRef<
 });
 Label.displayName = "Label";
 
-// Photo Upload Component with improved image handling and debug mode
+// FIXED: Photo Upload Component with proper file validation
 const PhotoUpload = ({ 
   label, 
   currentPhoto, 
@@ -258,9 +258,19 @@ const PhotoUpload = ({
     if (file) {
       console.log('File selected:', file.name, file.type, file.size);
       
-      // Validate file
-      if (!profileService.validateImageData(`data:${file.type};base64,`)) {
-        console.error('Invalid file type:', file.type);
+      // FIXED: Validate file type properly
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        console.error('Invalid file type:', file.type, 'Allowed:', allowedTypes);
+        alert(`Invalid file type: ${file.type}. Please select a JPEG, PNG, WebP, or GIF image.`);
+        return;
+      }
+      
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        console.error('File too large:', file.size, 'Max:', maxSize);
+        alert('File size too large. Please select an image smaller than 5MB.');
         return;
       }
       
@@ -269,10 +279,18 @@ const PhotoUpload = ({
       reader.onload = (e) => {
         const result = e.target?.result as string;
         console.log('File converted to base64, length:', result.length);
-        onPhotoChange(result);
+        
+        // FIXED: Validate the base64 data before using it
+        if (profileService.validateImageData(result)) {
+          onPhotoChange(result);
+        } else {
+          console.error('Generated base64 data is invalid');
+          alert('Failed to process the image. Please try a different file.');
+        }
       };
       reader.onerror = (error) => {
         console.error('Error reading file:', error);
+        alert('Failed to read the file. Please try again.');
       };
       reader.readAsDataURL(file);
     }
@@ -361,7 +379,7 @@ const PhotoUpload = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
           onChange={handleFileSelect}
           className="hidden"
           disabled={loading}
@@ -644,10 +662,17 @@ export const Profile: React.FC = () => {
       return;
     }
 
-    // If it's a string (base64), use it directly for immediate preview
+    // If it's a string (base64), validate and use it directly for immediate preview
     if (typeof photoData === 'string') {
       console.log('Setting photo data directly:', field, photoData.substring(0, 50) + '...');
-      updateProfile({ [field]: photoData });
+      
+      // FIXED: Validate the image data before setting it
+      if (profileService.validateImageData(photoData)) {
+        updateProfile({ [field]: photoData });
+      } else {
+        console.error('Invalid image data provided:', photoData.substring(0, 100));
+        setErrors(prev => ({ ...prev, [field]: 'Invalid image data. Please try a different file.' }));
+      }
     } else {
       // If it's a File object, convert to base64 for preview
       setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: true }));
@@ -657,16 +682,26 @@ export const Profile: React.FC = () => {
         reader.onload = (e) => {
           const result = e.target?.result as string;
           console.log('File converted to base64 for preview:', field, result.substring(0, 50) + '...');
-          updateProfile({ [field]: result });
+          
+          // FIXED: Validate the converted base64 data
+          if (profileService.validateImageData(result)) {
+            updateProfile({ [field]: result });
+          } else {
+            console.error('Invalid base64 data generated from file');
+            setErrors(prev => ({ ...prev, [field]: 'Failed to process the image. Please try a different file.' }));
+          }
+          
           setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: false }));
         };
         reader.onerror = (error) => {
           console.error('Error reading file:', error);
+          setErrors(prev => ({ ...prev, [field]: 'Failed to read the file. Please try again.' }));
           setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: false }));
         };
         reader.readAsDataURL(photoData);
       } catch (error) {
         console.error('Error processing file:', error);
+        setErrors(prev => ({ ...prev, [field]: 'Error processing the file. Please try again.' }));
         setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: false }));
       }
     }
@@ -748,6 +783,8 @@ export const Profile: React.FC = () => {
               <div className="space-y-2 text-sm">
                 <p className="text-yellow-300">Profile Photo: {localProfile.profilePhoto ? 'Set' : 'Not set'}</p>
                 <p className="text-yellow-300">Cover Photo: {localProfile.coverPhoto ? 'Set' : 'Not set'}</p>
+                <p className="text-yellow-300">Profile Photo Valid: {localProfile.profilePhoto ? profileService.validateImageData(localProfile.profilePhoto).toString() : 'N/A'}</p>
+                <p className="text-yellow-300">Cover Photo Valid: {localProfile.coverPhoto ? profileService.validateImageData(localProfile.coverPhoto).toString() : 'N/A'}</p>
                 <Button size="sm" variant="outline" onClick={handleDebugStorage}>
                   Test Storage
                 </Button>
@@ -762,6 +799,14 @@ export const Profile: React.FC = () => {
           
           {errors.submit && (
             <ErrorMessage message={errors.submit} />
+          )}
+          
+          {errors.profilePhoto && (
+            <ErrorMessage message={`Profile Photo: ${errors.profilePhoto}`} />
+          )}
+          
+          {errors.coverPhoto && (
+            <ErrorMessage message={`Cover Photo: ${errors.coverPhoto}`} />
           )}
           
           {successMessage && (
