@@ -142,46 +142,76 @@ export const validateEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-// Simple client-side rate limiting (fallback when database is unavailable)
-const rateLimitStore = new Map<string, { attempts: number; lastAttempt: number }>();
+// Enhanced client-side rate limiting (primary method when database is unavailable)
+const rateLimitStore = new Map<string, { attempts: number; lastAttempt: number; resetTime: number }>();
+
+// Check if auth_attempts table exists
+let authAttemptsTableExists: boolean | null = null;
+
+const checkAuthAttemptsTable = async (): Promise<boolean> => {
+  if (authAttemptsTableExists !== null) {
+    return authAttemptsTableExists;
+  }
+
+  try {
+    // Try a simple query to check if table exists
+    const { error } = await supabase
+      .from('auth_attempts')
+      .select('id')
+      .limit(1);
+
+    authAttemptsTableExists = !error;
+    return authAttemptsTableExists;
+  } catch (error) {
+    console.warn('auth_attempts table check failed:', error);
+    authAttemptsTableExists = false;
+    return false;
+  }
+};
 
 export const checkRateLimit = async (email: string): Promise<{ allowed: boolean; remainingAttempts: number }> => {
   const maxAttempts = parseInt(import.meta.env.VITE_MAX_LOGIN_ATTEMPTS || '5');
   const timeWindow = 15 * 60 * 1000; // 15 minutes
   const now = Date.now();
   
-  // Try database first, fall back to client-side if it fails
-  try {
-    const cutoffTime = new Date(now - timeWindow).toISOString();
+  // Check if auth_attempts table exists
+  const tableExists = await checkAuthAttemptsTable();
+  
+  if (tableExists) {
+    try {
+      const cutoffTime = new Date(now - timeWindow).toISOString();
 
-    const { data, error } = await supabase
-      .from('auth_attempts')
-      .select('*')
-      .eq('email', email)
-      .eq('success', false)
-      .gte('created_at', cutoffTime)
-      .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('auth_attempts')
+        .select('*')
+        .eq('email', email)
+        .eq('success', false)
+        .gte('created_at', cutoffTime)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.warn('Database rate limit check failed, using client-side fallback:', error.message);
-      // Fall back to client-side rate limiting
+      if (error) {
+        console.warn('Database rate limit check failed, using client-side fallback:', error.message);
+        return checkClientSideRateLimit(email, maxAttempts, timeWindow, now);
+      }
+
+      const failedAttempts = data?.length || 0;
+      const remainingAttempts = Math.max(0, maxAttempts - failedAttempts);
+
+      return {
+        allowed: failedAttempts < maxAttempts,
+        remainingAttempts
+      };
+    } catch (error) {
+      console.warn('Rate limit check error, using client-side fallback:', error);
       return checkClientSideRateLimit(email, maxAttempts, timeWindow, now);
     }
-
-    const failedAttempts = data?.length || 0;
-    const remainingAttempts = Math.max(0, maxAttempts - failedAttempts);
-
-    return {
-      allowed: failedAttempts < maxAttempts,
-      remainingAttempts
-    };
-  } catch (error) {
-    console.warn('Rate limit check error, using client-side fallback:', error);
+  } else {
+    // Use client-side rate limiting when table doesn't exist
     return checkClientSideRateLimit(email, maxAttempts, timeWindow, now);
   }
 };
 
-// Client-side rate limiting fallback
+// Enhanced client-side rate limiting fallback
 const checkClientSideRateLimit = (email: string, maxAttempts: number, timeWindow: number, now: number) => {
   const userAttempts = rateLimitStore.get(email);
   
@@ -190,7 +220,7 @@ const checkClientSideRateLimit = (email: string, maxAttempts: number, timeWindow
   }
   
   // Reset if time window has passed
-  if (now - userAttempts.lastAttempt > timeWindow) {
+  if (now > userAttempts.resetTime) {
     rateLimitStore.delete(email);
     return { allowed: true, remainingAttempts: maxAttempts - 1 };
   }
@@ -202,38 +232,48 @@ const checkClientSideRateLimit = (email: string, maxAttempts: number, timeWindow
   };
 };
 
-// Log auth attempt (with fallback)
+// Log auth attempt (with graceful fallback)
 export const logAuthAttempt = async (
   email: string, 
   attemptType: 'signin' | 'signup', 
   success: boolean
 ): Promise<void> => {
-  try {
-    // Try database first
-    await supabase
-      .from('auth_attempts')
-      .insert({
-        email,
-        attempt_type: attemptType,
-        success,
-        ip_address: null, // Would need server-side implementation for real IP
-        user_agent: navigator.userAgent
-      });
-  } catch (error) {
-    console.warn('Failed to log auth attempt to database, using client-side fallback:', error);
-    
-    // Fall back to client-side tracking for rate limiting
-    if (!success) {
-      const userAttempts = rateLimitStore.get(email) || { attempts: 0, lastAttempt: 0 };
-      rateLimitStore.set(email, {
-        attempts: userAttempts.attempts + 1,
-        lastAttempt: Date.now()
-      });
-    } else {
-      // Clear failed attempts on success
-      rateLimitStore.delete(email);
+  const now = Date.now();
+  const timeWindow = 15 * 60 * 1000; // 15 minutes
+  
+  // Always update client-side tracking for rate limiting
+  if (!success) {
+    const userAttempts = rateLimitStore.get(email) || { attempts: 0, lastAttempt: 0, resetTime: now + timeWindow };
+    rateLimitStore.set(email, {
+      attempts: userAttempts.attempts + 1,
+      lastAttempt: now,
+      resetTime: userAttempts.resetTime || now + timeWindow
+    });
+  } else {
+    // Clear failed attempts on success
+    rateLimitStore.delete(email);
+  }
+
+  // Try to log to database if table exists
+  const tableExists = await checkAuthAttemptsTable();
+  
+  if (tableExists) {
+    try {
+      await supabase
+        .from('auth_attempts')
+        .insert({
+          email,
+          attempt_type: attemptType,
+          success,
+          ip_address: null, // Would need server-side implementation for real IP
+          user_agent: navigator.userAgent
+        });
+    } catch (error) {
+      console.warn('Failed to log auth attempt to database:', error);
+      // Client-side tracking is already handled above
     }
   }
+  // If table doesn't exist, we rely on client-side tracking only
 };
 
 // Session management
