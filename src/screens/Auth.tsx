@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, 
@@ -16,13 +16,16 @@ import {
   X,
   UserPlus,
   LogIn,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw,
+  Key
 } from 'lucide-react';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useAtom } from 'jotai';
 import { screenAtom } from '@/store/screens';
+import { validatePassword, validateEmail } from '@/lib/supabase';
 
-// Premium Input Component
+// Premium Input Component with enhanced validation
 const PremiumInput = ({ 
   value, 
   onChange, 
@@ -32,7 +35,9 @@ const PremiumInput = ({
   showToggle = false,
   onToggle,
   error,
-  disabled = false
+  disabled = false,
+  onBlur,
+  showStrength = false
 }: {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -43,7 +48,35 @@ const PremiumInput = ({
   onToggle?: () => void;
   error?: string;
   disabled?: boolean;
+  onBlur?: () => void;
+  showStrength?: boolean;
 }) => {
+  const [strength, setStrength] = useState(0);
+
+  useEffect(() => {
+    if (showStrength && type === 'password') {
+      const validation = validatePassword(value);
+      const strengthScore = Math.max(0, 5 - validation.errors.length);
+      setStrength(strengthScore);
+    }
+  }, [value, showStrength, type]);
+
+  const getStrengthColor = () => {
+    if (strength <= 1) return 'bg-red-500';
+    if (strength <= 2) return 'bg-orange-500';
+    if (strength <= 3) return 'bg-yellow-500';
+    if (strength <= 4) return 'bg-blue-500';
+    return 'bg-green-500';
+  };
+
+  const getStrengthText = () => {
+    if (strength <= 1) return 'Very Weak';
+    if (strength <= 2) return 'Weak';
+    if (strength <= 3) return 'Fair';
+    if (strength <= 4) return 'Good';
+    return 'Strong';
+  };
+
   return (
     <div className="relative group">
       {/* Input field */}
@@ -57,6 +90,7 @@ const PremiumInput = ({
           type={type}
           value={value}
           onChange={onChange}
+          onBlur={onBlur}
           placeholder={placeholder}
           disabled={disabled}
           className={`w-full h-12 px-3 pl-10 pr-10 rounded-xl bg-slate-900/70 border text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -77,15 +111,36 @@ const PremiumInput = ({
         )}
       </div>
       
+      {/* Password strength indicator */}
+      {showStrength && type === 'password' && value && (
+        <div className="mt-2 space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1 bg-slate-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${getStrengthColor()}`}
+                style={{ width: `${(strength / 5) * 100}%` }}
+              />
+            </div>
+            <span className={`text-xs font-medium ${
+              strength <= 2 ? 'text-red-400' : 
+              strength <= 3 ? 'text-yellow-400' : 
+              strength <= 4 ? 'text-blue-400' : 'text-green-400'
+            }`}>
+              {getStrengthText()}
+            </span>
+          </div>
+        </div>
+      )}
+      
       {/* Error message */}
       {error && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 mt-2 text-red-400 text-xs"
+          className="flex items-start gap-2 mt-2 text-red-400 text-xs"
         >
-          <AlertCircle className="size-3" />
-          {error}
+          <AlertCircle className="size-3 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
         </motion.div>
       )}
       
@@ -95,7 +150,7 @@ const PremiumInput = ({
   );
 };
 
-// Premium Button Component
+// Premium Button Component with loading states
 const PremiumButton = ({ 
   children, 
   onClick, 
@@ -107,7 +162,7 @@ const PremiumButton = ({
 }: {
   children: React.ReactNode;
   onClick?: () => void;
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
   disabled?: boolean;
   loading?: boolean;
   className?: string;
@@ -118,7 +173,8 @@ const PremiumButton = ({
   const variants = {
     primary: "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 hover:scale-105 disabled:hover:scale-100",
     secondary: "border border-white/20 bg-white/5 hover:bg-white/10 text-white backdrop-blur-sm hover:border-white/30",
-    ghost: "text-white hover:bg-white/10"
+    ghost: "text-white hover:bg-white/10",
+    danger: "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/25"
   };
 
   return (
@@ -129,7 +185,7 @@ const PremiumButton = ({
       {...props}
     >
       {/* Animated background gradient */}
-      {variant === "primary" && (
+      {(variant === "primary" || variant === "danger") && (
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       )}
       
@@ -169,6 +225,30 @@ const SuccessMessage = ({ message }: { message: string }) => {
     >
       <CheckCircle className="size-4 text-emerald-400 flex-shrink-0" />
       <p className="text-emerald-300 text-sm font-medium">{message}</p>
+    </motion.div>
+  );
+};
+
+// Error Message Component
+const ErrorMessage = ({ message, onRetry }: { message: string; onRetry?: () => void }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex items-center justify-between gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 backdrop-blur-sm"
+    >
+      <div className="flex items-center gap-2">
+        <AlertCircle className="size-4 text-red-400 flex-shrink-0" />
+        <p className="text-red-300 text-sm font-medium">{message}</p>
+      </div>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="text-red-300 hover:text-red-200 transition-colors"
+        >
+          <RefreshCw className="size-4" />
+        </button>
+      )}
     </motion.div>
   );
 };
@@ -243,7 +323,7 @@ const AuthModeSelection = ({
       <div className="grid grid-cols-1 gap-2">
         <FeatureBadge
           icon={<Shield className="size-3" />}
-          text="Secure & Encrypted Authentication"
+          text="Enterprise-Grade Security & Encryption"
         />
         <FeatureBadge
           icon={<Zap className="size-3" />}
@@ -251,14 +331,14 @@ const AuthModeSelection = ({
         />
         <FeatureBadge
           icon={<Sparkles className="size-3" />}
-          text="Premium AI Experience"
+          text="Premium AI Experience with Advanced Features"
         />
       </div>
     </motion.div>
   );
 };
 
-// Sign In Form Component
+// Sign In Form Component with enhanced validation
 const SignInForm = ({ 
   onBack, 
   onSuccess 
@@ -273,11 +353,7 @@ const SignInForm = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const [attemptCount, setAttemptCount] = useState(0);
 
   const handleSignIn = async () => {
     setErrors({});
@@ -298,6 +374,8 @@ const SignInForm = ({
 
     try {
       setIsSubmitting(true);
+      setAttemptCount(prev => prev + 1);
+      
       const result = await signIn(email, password);
 
       if (result.error) {
@@ -315,6 +393,11 @@ const SignInForm = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleRetry = () => {
+    setErrors({});
+    setAttemptCount(0);
   };
 
   return (
@@ -343,14 +426,10 @@ const SignInForm = ({
 
       {/* General Error */}
       {errors.general && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 backdrop-blur-sm"
-        >
-          <AlertCircle className="size-4 text-red-400 flex-shrink-0" />
-          <p className="text-red-300 text-sm font-medium">{errors.general}</p>
-        </motion.div>
+        <ErrorMessage 
+          message={errors.general} 
+          onRetry={attemptCount > 1 ? handleRetry : undefined}
+        />
       )}
 
       {/* Form */}
@@ -369,6 +448,13 @@ const SignInForm = ({
             icon={<Mail className="size-4" />}
             error={errors.email}
             disabled={isSubmitting}
+            onBlur={() => {
+              if (email && !validateEmail(email)) {
+                setErrors({ ...errors, email: 'Please enter a valid email address' });
+              } else {
+                setErrors({ ...errors, email: '' });
+              }
+            }}
           />
         </div>
 
@@ -394,7 +480,7 @@ const SignInForm = ({
         {/* Submit Button */}
         <PremiumButton
           onClick={handleSignIn}
-          disabled={isSubmitting || isLoading}
+          disabled={isSubmitting || isLoading || !email || !password}
           loading={isSubmitting}
           className="w-full h-12 text-sm"
         >
@@ -403,11 +489,18 @@ const SignInForm = ({
           <ArrowRight className="size-3" />
         </PremiumButton>
       </div>
+
+      {/* Additional Options */}
+      <div className="text-center">
+        <button className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline transition-colors">
+          Forgot your password?
+        </button>
+      </div>
     </motion.div>
   );
 };
 
-// Sign Up Form Component
+// Sign Up Form Component with enhanced validation
 const SignUpForm = ({ 
   onBack, 
   onSuccess 
@@ -425,11 +518,6 @@ const SignUpForm = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
 
   const handleSignUp = async () => {
     setErrors({});
@@ -449,8 +537,9 @@ const SignUpForm = ({
       return;
     }
 
-    if (password.length < 6) {
-      setErrors({ password: 'Password must be at least 6 characters' });
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setErrors({ password: passwordValidation.errors[0] });
       return;
     }
 
@@ -505,16 +594,7 @@ const SignUpForm = ({
       {success && <SuccessMessage message={success} />}
 
       {/* General Error */}
-      {errors.general && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 backdrop-blur-sm"
-        >
-          <AlertCircle className="size-4 text-red-400 flex-shrink-0" />
-          <p className="text-red-300 text-sm font-medium">{errors.general}</p>
-        </motion.div>
-      )}
+      {errors.general && <ErrorMessage message={errors.general} />}
 
       {/* Form */}
       <div className="space-y-4">
@@ -548,6 +628,13 @@ const SignUpForm = ({
             icon={<Mail className="size-4" />}
             error={errors.email}
             disabled={isSubmitting}
+            onBlur={() => {
+              if (email && !validateEmail(email)) {
+                setErrors({ ...errors, email: 'Please enter a valid email address' });
+              } else {
+                setErrors({ ...errors, email: '' });
+              }
+            }}
           />
         </div>
 
@@ -560,13 +647,14 @@ const SignUpForm = ({
           <PremiumInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Create a secure password (min 6 characters)"
+            placeholder="Create a secure password"
             type={showPassword ? "text" : "password"}
             icon={<Lock className="size-4" />}
             showToggle={true}
             onToggle={() => setShowPassword(!showPassword)}
             error={errors.password}
             disabled={isSubmitting}
+            showStrength={true}
           />
         </div>
 
@@ -586,13 +674,20 @@ const SignUpForm = ({
             onToggle={() => setShowConfirmPassword(!showConfirmPassword)}
             error={errors.confirmPassword}
             disabled={isSubmitting}
+            onBlur={() => {
+              if (confirmPassword && password !== confirmPassword) {
+                setErrors({ ...errors, confirmPassword: 'Passwords do not match' });
+              } else {
+                setErrors({ ...errors, confirmPassword: '' });
+              }
+            }}
           />
         </div>
 
         {/* Submit Button */}
         <PremiumButton
           onClick={handleSignUp}
-          disabled={isSubmitting || isLoading}
+          disabled={isSubmitting || isLoading || !email || !password || !confirmPassword}
           loading={isSubmitting}
           className="w-full h-12 text-sm"
         >
@@ -627,6 +722,18 @@ export const Auth: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const handleClose = () => {
     setScreenState({ currentScreen: "home" });
   };
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
