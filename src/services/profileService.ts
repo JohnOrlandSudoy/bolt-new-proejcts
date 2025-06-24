@@ -27,6 +27,28 @@ export interface ProfileWithInterests {
 }
 
 class ProfileService {
+  // Get the correct public URL for an image
+  getImageUrl(path: string): string {
+    if (!path) return '';
+    
+    // If it's already a full URL, return as is
+    if (path.startsWith('http')) {
+      return path;
+    }
+    
+    // If it's a base64 data URL, return as is
+    if (path.startsWith('data:')) {
+      return path;
+    }
+    
+    // Get public URL from Supabase storage
+    const { data } = supabase.storage
+      .from('user-uploads')
+      .getPublicUrl(path);
+    
+    return data.publicUrl;
+  }
+
   // Upload photo to Supabase Storage with proper folder structure
   async uploadPhoto(file: File, bucket: 'profile-photos' | 'cover-photos', userId: string): Promise<string> {
     try {
@@ -62,13 +84,8 @@ class ProfileService {
 
       console.log('Upload successful:', data);
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('user-uploads')
-        .getPublicUrl(filePath);
-
-      console.log('Public URL:', publicUrl);
-      return publicUrl;
+      // Return the file path (not the full URL) to store in database
+      return filePath;
     } catch (error) {
       console.error('Photo upload failed:', error);
       throw error;
@@ -136,28 +153,28 @@ class ProfileService {
     try {
       console.log('Upserting profile for user:', userId, profileData);
       
-      let profilePhotoUrl = profileData.profilePhoto;
-      let coverPhotoUrl = profileData.coverPhoto;
+      let profilePhotoPath = profileData.profilePhoto;
+      let coverPhotoPath = profileData.coverPhoto;
 
       // Handle photo uploads if they are base64 data
       if (profileData.profilePhoto && profileData.profilePhoto.startsWith('data:')) {
         console.log('Uploading profile photo...');
-        profilePhotoUrl = await this.uploadBase64Photo(
+        profilePhotoPath = await this.uploadBase64Photo(
           profileData.profilePhoto, 
           'profile-photos', 
           userId
         );
-        console.log('Profile photo uploaded:', profilePhotoUrl);
+        console.log('Profile photo uploaded to path:', profilePhotoPath);
       }
 
       if (profileData.coverPhoto && profileData.coverPhoto.startsWith('data:')) {
         console.log('Uploading cover photo...');
-        coverPhotoUrl = await this.uploadBase64Photo(
+        coverPhotoPath = await this.uploadBase64Photo(
           profileData.coverPhoto, 
           'cover-photos', 
           userId
         );
-        console.log('Cover photo uploaded:', coverPhotoUrl);
+        console.log('Cover photo uploaded to path:', coverPhotoPath);
       }
 
       // Convert birthday to date format
@@ -170,8 +187,8 @@ class ProfileService {
         .rpc('upsert_user_profile', {
           profile_user_id: userId,
           profile_email: profileData.email || '',
-          profile_photo: profilePhotoUrl || null,
-          cover_photo: coverPhotoUrl || null,
+          profile_photo: profilePhotoPath || null,
+          cover_photo: coverPhotoPath || null,
           full_name: profileData.fullName || '',
           birthday: birthdayDate,
           bio: profileData.bio || '',
@@ -248,8 +265,8 @@ class ProfileService {
     return {
       id: dbProfile.profile.id,
       email: dbProfile.profile.email,
-      profilePhoto: dbProfile.profile.profile_photo || '',
-      coverPhoto: dbProfile.profile.cover_photo || '',
+      profilePhoto: this.getImageUrl(dbProfile.profile.profile_photo || ''),
+      coverPhoto: this.getImageUrl(dbProfile.profile.cover_photo || ''),
       fullName: dbProfile.profile.full_name,
       birthday: dbProfile.profile.birthday || '',
       bio: dbProfile.profile.bio,
@@ -375,6 +392,36 @@ class ProfileService {
       console.log('Photo deleted successfully:', filePath);
     } catch (error) {
       console.error('Delete photo failed:', error);
+      throw error;
+    }
+  }
+
+  // Test image URL accessibility
+  async testImageUrl(url: string): Promise<boolean> {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      return response.ok;
+    } catch (error) {
+      console.error('Image URL test failed:', error);
+      return false;
+    }
+  }
+
+  // Get signed URL for private images (if needed)
+  async getSignedUrl(path: string, expiresIn: number = 3600): Promise<string> {
+    try {
+      const { data, error } = await supabase.storage
+        .from('user-uploads')
+        .createSignedUrl(path, expiresIn);
+
+      if (error) {
+        console.error('Signed URL error:', error);
+        throw new Error(`Failed to get signed URL: ${error.message}`);
+      }
+
+      return data.signedUrl;
+    } catch (error) {
+      console.error('Get signed URL failed:', error);
       throw error;
     }
   }

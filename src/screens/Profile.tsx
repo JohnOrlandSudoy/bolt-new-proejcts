@@ -7,6 +7,7 @@ import { screenAtom } from "@/store/screens";
 import { useAuthContext } from "@/components/AuthProvider";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useProfile } from "@/hooks/useProfile";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import {
   X,
   Save,
@@ -230,7 +231,7 @@ const Label = React.forwardRef<
 });
 Label.displayName = "Label";
 
-// Photo Upload Component
+// Photo Upload Component with improved image handling
 const PhotoUpload = ({ 
   label, 
   currentPhoto, 
@@ -281,10 +282,11 @@ const PhotoUpload = ({
         
         {currentPhoto ? (
           <>
-            <img
+            <ImageWithFallback
               src={currentPhoto}
               alt={label}
               className="w-full h-full object-cover"
+              errorMessage="Failed to load image"
             />
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
               <Button
