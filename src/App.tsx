@@ -2,10 +2,8 @@ import { useAtom } from "jotai";
 import { screenAtom } from "./store/screens";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
-import { AuthProvider } from "./components/AuthProvider";
 import {
   Home,
-  Auth,
   IntroLoading,
   Outage,
   OutOfMinutes,
@@ -16,15 +14,13 @@ import {
   Settings,
 } from "./screens";
 
-function AppContent() {
-  const [{ currentScreen }, setScreenState] = useAtom(screenAtom);
+function App() {
+  const [{ currentScreen }] = useAtom(screenAtom);
 
   const renderScreen = () => {
     switch (currentScreen) {
       case "home":
         return <Home />;
-      case "auth":
-        return <Auth onSuccess={() => setScreenState({ currentScreen: "intro" })} />;
       case "introLoading":
         return <IntroLoading />;
       case "outage":
@@ -48,18 +44,10 @@ function AppContent() {
 
   return (
     <main className="flex h-svh flex-col items-center justify-between gap-3 p-5 sm:gap-4 lg:p-8 bg-black">
-      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && <Header />}
+      {currentScreen !== "introLoading" && currentScreen !== "home" && <Header />}
       {renderScreen()}
-      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && <Footer />}
+      {currentScreen !== "introLoading" && currentScreen !== "home" && <Footer />}
     </main>
-  );
-}
-
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
   );
 }
 
