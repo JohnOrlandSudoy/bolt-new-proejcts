@@ -12,6 +12,7 @@ import {
   Conversation,
   FinalScreen,
   Settings,
+  UseCases,
 } from "./screens";
 
 function App() {
@@ -31,6 +32,8 @@ function App() {
         return <Intro />;
       case "settings":
         return <Settings />;
+      case "useCases":
+        return <UseCases />;
       case "instructions":
         return <Instructions />;
       case "conversation":
