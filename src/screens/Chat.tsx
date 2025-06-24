@@ -50,7 +50,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Minimize2,
-  Maximize2
+  Maximize2,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { cn } from '@/utils';
 import { ChatMessage, ChatRoom, UserForCollaboration, UserConnection } from '@/services/chatService';
@@ -66,7 +68,7 @@ const Button = React.forwardRef<
     fullWidth?: boolean;
   }
 >(({ className, variant = "default", size = "default", loading = false, fullWidth = false, children, disabled, ...props }, ref) => {
-  const baseStyles = "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:pointer-events-none active:scale-95";
+  const baseStyles = "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:pointer-events-none active:scale-95 touch-manipulation";
   
   const variants = {
     ghost: "hover:bg-white/10 text-white/80 hover:text-white",
@@ -80,9 +82,9 @@ const Button = React.forwardRef<
   
   const sizes = {
     xs: "h-8 px-2 text-xs min-w-[32px]",
-    icon: "h-10 w-10 p-0 min-w-[40px]",
-    sm: "h-9 px-3 text-sm min-w-[36px]",
-    default: "h-10 px-4 text-sm min-w-[40px]",
+    icon: "h-10 w-10 p-0 min-w-[44px]", // Increased for better mobile touch
+    sm: "h-9 px-3 text-sm min-w-[44px]",
+    default: "h-11 px-4 text-sm min-w-[44px]", // Increased height for mobile
     lg: "h-12 px-6 text-base min-w-[48px]"
   };
 
@@ -128,14 +130,16 @@ const Input = React.forwardRef<
       <input
         type={type}
         className={cn(
-          "flex h-11 w-full rounded-xl border-2 border-slate-500 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:border-cyan-400 transition-all duration-200 shadow-lg",
+          "flex w-full rounded-xl border-2 border-slate-500 bg-slate-900 px-3 py-3 text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:border-cyan-400 transition-all duration-200 shadow-lg",
           icon && "pl-10",
           "hover:border-cyan-500/70 hover:bg-slate-800",
           "touch-manipulation", // Better mobile touch handling
+          "text-base", // Prevent zoom on iOS
+          "h-12 md:h-11", // Larger on mobile
           error && "border-red-500/50 focus-visible:border-red-500 focus-visible:ring-red-500/50",
           className
         )}
-        style={{ fontFamily: "'Inter', sans-serif" }}
+        style={{ fontFamily: "'Inter', sans-serif", fontSize: '16px' }} // Prevent iOS zoom
         ref={ref}
         {...props}
       />
@@ -199,11 +203,11 @@ const ChatRoomItem = ({
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 touch-manipulation",
+        "flex items-center gap-3 rounded-xl cursor-pointer transition-all duration-200 touch-manipulation",
+        isMobile ? "p-4 min-h-[72px]" : "p-3", // Larger touch targets on mobile
         isActive 
           ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30" 
-          : "hover:bg-white/10 border border-transparent",
-        isMobile && "min-h-[60px]" // Better touch targets on mobile
+          : "hover:bg-white/10 border border-transparent"
       )}
     >
       {/* Room Icon */}
@@ -237,9 +241,9 @@ const ChatRoomItem = ({
         {room.latestMessage && (
           <p className={cn(
             "text-slate-400 truncate",
-            isMobile ? "text-sm" : "text-xs"
+            isMobile ? "text-sm mt-1" : "text-xs"
           )}>
-            {room.latestMessage.senderName}: {room.latestMessage.content}
+            <span className="font-medium">{room.latestMessage.senderName}:</span> {room.latestMessage.content}
           </p>
         )}
         
@@ -303,7 +307,7 @@ const MessageItem = ({
   if (message.messageType === 'system') {
     return (
       <div className="flex justify-center my-4">
-        <div className="bg-white/10 text-slate-300 text-sm px-4 py-2 rounded-full flex items-center gap-2 max-w-[80%] text-center">
+        <div className="bg-white/10 text-slate-300 text-sm px-4 py-2 rounded-full flex items-center gap-2 max-w-[85%] text-center">
           <Settings className="size-3 flex-shrink-0" />
           <span className="break-words">{message.content}</span>
         </div>
@@ -316,9 +320,9 @@ const MessageItem = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex gap-3 mb-4",
+        "flex mb-4",
         isOwn ? "flex-row-reverse" : "flex-row",
-        isMobile && "px-2"
+        isMobile ? "gap-2 px-1" : "gap-3"
       )}
     >
       {/* Avatar */}
@@ -333,8 +337,8 @@ const MessageItem = ({
 
       {/* Message Content */}
       <div className={cn(
-        "space-y-1 max-w-[85%]",
-        isMobile && "max-w-[80%]",
+        "space-y-1",
+        isMobile ? "max-w-[85%]" : "max-w-[75%]",
         isOwn ? "items-end" : "items-start"
       )}>
         {/* Sender Name */}
@@ -355,15 +359,15 @@ const MessageItem = ({
 
         {/* Message Bubble */}
         <div className={cn(
-          "px-4 py-3 rounded-2xl break-words",
-          isMobile ? "text-base" : "text-sm",
+          "rounded-2xl break-words",
+          isMobile ? "px-4 py-3 text-base leading-relaxed" : "px-4 py-3 text-sm",
           isOwn 
             ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white" 
             : "bg-white/10 text-white"
         )}>
           <div className="flex items-start gap-2">
             {getMessageTypeIcon()}
-            <p className="leading-relaxed break-words flex-1">
+            <p className="break-words flex-1 whitespace-pre-wrap">
               {message.content}
             </p>
           </div>
@@ -470,8 +474,8 @@ const UserSearchItem = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation",
-        isMobile && "min-h-[80px]"
+        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation",
+        isMobile ? "p-4 min-h-[80px]" : "p-4"
       )}
     >
       {/* Avatar */}
@@ -579,8 +583,8 @@ const ConnectionItem = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation",
-        isMobile && "min-h-[80px]"
+        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation",
+        isMobile ? "p-4 min-h-[80px]" : "p-4"
       )}
     >
       {/* Avatar */}
@@ -651,6 +655,7 @@ export const Chat: React.FC = () => {
   const [loadingConnections, setLoadingConnections] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
@@ -693,8 +698,9 @@ export const Chat: React.FC = () => {
   // Detect mobile screen size
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth >= 768) {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
         setIsSidebarOpen(true);
       }
     };
@@ -841,6 +847,12 @@ export const Chat: React.FC = () => {
     setScreenState({ currentScreen: "intro" });
   };
 
+  // Handle voice recording
+  const handleVoiceToggle = () => {
+    setIsVoiceRecording(!isVoiceRecording);
+    // Voice recording implementation would go here
+  };
+
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -967,7 +979,7 @@ export const Chat: React.FC = () => {
                   </div>
 
                   {/* Chat Rooms List */}
-                  <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
+                  <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4 hide-scrollbar">
                     {loadingRooms ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="size-6 animate-spin text-cyan-400" />
@@ -1016,7 +1028,7 @@ export const Chat: React.FC = () => {
                   </div>
 
                   {/* Users List */}
-                  <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4">
+                  <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4 hide-scrollbar">
                     {loadingUsers ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="size-6 animate-spin text-cyan-400" />
@@ -1070,7 +1082,7 @@ export const Chat: React.FC = () => {
                   </div>
 
                   {/* Connections List */}
-                  <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4">
+                  <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4 hide-scrollbar">
                     {loadingConnections ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="size-6 animate-spin text-cyan-400" />
@@ -1104,7 +1116,7 @@ export const Chat: React.FC = () => {
           
           {/* Mobile Header Bar */}
           {isMobile && (
-            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/90 backdrop-blur-sm">
+            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/90 backdrop-blur-sm flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -1182,7 +1194,7 @@ export const Chat: React.FC = () => {
               )}
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="size-6 animate-spin text-cyan-400" />
@@ -1234,10 +1246,10 @@ export const Chat: React.FC = () => {
 
               {/* Message Input */}
               <div className={cn(
-                "border-t border-slate-700/50 flex-shrink-0",
+                "border-t border-slate-700/50 flex-shrink-0 safe-area-inset-bottom",
                 isMobile ? "p-3" : "p-4"
               )}>
-                <form onSubmit={handleSendMessage} className="flex items-center gap-3">
+                <form onSubmit={handleSendMessage} className="flex items-end gap-3">
                   <Button variant="ghost" size="icon" type="button">
                     <Paperclip className="size-5" />
                   </Button>
@@ -1249,8 +1261,8 @@ export const Chat: React.FC = () => {
                       onChange={handleMessageInputChange}
                       placeholder="Type a message..."
                       className={cn(
-                        "pr-12",
-                        isMobile && "text-base" // Prevent zoom on iOS
+                        "pr-12 resize-none",
+                        isMobile && "min-h-[48px]" // Larger on mobile
                       )}
                       fullWidth
                     />
@@ -1264,14 +1276,26 @@ export const Chat: React.FC = () => {
                     </Button>
                   </div>
                   
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="icon"
-                    disabled={!messageInput.trim()}
-                  >
-                    <Send className="size-5" />
-                  </Button>
+                  {/* Voice/Send Button */}
+                  {messageInput.trim() ? (
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="icon"
+                      disabled={!messageInput.trim()}
+                    >
+                      <Send className="size-5" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant={isVoiceRecording ? "danger" : "secondary"}
+                      size="icon"
+                      onClick={handleVoiceToggle}
+                    >
+                      {isVoiceRecording ? <MicOff className="size-5" /> : <Mic className="size-5" />}
+                    </Button>
+                  )}
                 </form>
               </div>
             </>
