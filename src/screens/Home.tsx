@@ -2,7 +2,7 @@ import { AnimatedWrapper } from "@/components/DialogWrapper";
 import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { screenAtom } from "@/store/screens";
-import { ArrowRight, Sparkles, Play, Zap, Brain, Video, MessageCircle, Star, Compass } from "lucide-react";
+import { ArrowRight, Sparkles, Play, Zap, Brain, Video, MessageCircle, Star } from "lucide-react";
 import AudioButton from "@/components/AudioButton";
 import { LogoText } from "@/components/LogoText";
 import gloriaVideo from "@/assets/video/gloria.mp4";
@@ -114,10 +114,6 @@ export const Home: React.FC = () => {
 
   const handleGetStarted = () => {
     setScreenState({ currentScreen: "intro" });
-  };
-
-  const handleExploreUseCases = () => {
-    setScreenState({ currentScreen: "useCases" });
   };
 
   // Mouse tracking for interactive effects
@@ -288,15 +284,17 @@ export const Home: React.FC = () => {
               <div className="absolute inset-0 -top-2 -bottom-2 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             </AudioButton>
 
-            {/* Secondary CTA - Explore Use Cases */}
-            <AudioButton
-              onClick={handleExploreUseCases}
+            {/* Secondary CTA */}
+            <a
+              href="https://docs.tavus.io/sections/conversational-video-interface/cvi-overview"
+              target="_blank"
+              rel="noopener noreferrer"
               className="group flex items-center gap-3 px-8 py-4 text-lg font-semibold text-cyan-300 hover:text-white border border-cyan-400/30 hover:border-cyan-400/60 rounded-2xl bg-white/5 hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/20"
             >
-              <Compass className="size-5" />
-              Explore Use Cases
+              <Brain className="size-5" />
+              How it Works
               <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
-            </AudioButton>
+            </a>
           </motion.div>
 
           {/* Premium Stats */}
