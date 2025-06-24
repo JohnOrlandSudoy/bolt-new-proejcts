@@ -902,16 +902,12 @@ export const Chat: React.FC = () => {
               )}>
                 Collaboration Hub
               </h1>
-              <div className="flex items-center gap-2">
-                {isMobile && (
-                  <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)}>
-                    <X className="size-5" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon" onClick={handleClose}>
+              {/* Only show close button on mobile sidebar */}
+              {isMobile && (
+                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)}>
                   <X className="size-5" />
                 </Button>
-              </div>
+              )}
             </div>
 
             {/* Tab Switcher */}
@@ -1188,6 +1184,9 @@ export const Chat: React.FC = () => {
                     </Button>
                     <Button variant="ghost" size="icon">
                       <MoreVertical className="size-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={handleClose}>
+                      <X className="size-5" />
                     </Button>
                   </div>
                 </div>
