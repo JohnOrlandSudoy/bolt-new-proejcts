@@ -287,7 +287,7 @@ export const Auth: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
       {/* Enhanced Video Background */}
       <div className="absolute inset-0 z-0">
         <video
@@ -308,10 +308,10 @@ export const Auth: React.FC = () => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md"
+        className="relative z-10 w-full max-w-md my-8"
       >
         {/* Main Card */}
-        <div className="relative p-8 rounded-3xl bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl">
+        <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl max-h-[90vh] overflow-y-auto">
           
           {/* Close Button */}
           <button

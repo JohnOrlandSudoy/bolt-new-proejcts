@@ -228,7 +228,7 @@ export const Intro: React.FC = () => {
 
   return (
     <AnimatedWrapper>
-      <div className="flex size-full flex-col items-center justify-center relative">
+      <div className="flex size-full flex-col items-center justify-center relative overflow-y-auto">
         {/* Enhanced Video Background */}
         <video
           src={gloriaVideo}
@@ -249,10 +249,10 @@ export const Intro: React.FC = () => {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 w-full max-w-md mx-4"
+          className="relative z-10 w-full max-w-md mx-4 my-8"
         >
           {/* Main Card */}
-          <div className="relative p-8 rounded-3xl bg-gradient-to-br from-slate-900/90 via-slate-800/80 to-slate-900/90 backdrop-blur-xl border border-slate-700/50 shadow-2xl">
+          <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-slate-900/90 via-slate-800/80 to-slate-900/90 backdrop-blur-xl border border-slate-700/50 shadow-2xl max-h-[85vh] overflow-y-auto">
             
             {/* Animated background gradient */}
             <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 animate-pulse" />

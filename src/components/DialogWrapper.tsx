@@ -4,9 +4,9 @@ import { quantum } from 'ldrs';
 
 quantum.register();
 
-const desktopClassName = "lg:aspect-video lg:max-h-none lg:h-auto";
-const tabletClassName = "sm:max-h-[680px]"; // sm
-const mobileClassName = "w-full h-full max-h-[500px] max-w-5xl";
+const desktopClassName = "lg:aspect-video lg:max-h-none lg:h-auto lg:max-w-4xl";
+const tabletClassName = "sm:max-h-[85vh] sm:max-w-2xl"; 
+const mobileClassName = "w-full h-full max-h-[90vh] max-w-lg mx-auto";
 
 export const DialogWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -77,7 +77,7 @@ export const TextBlockWrapper = ({
   children: React.ReactNode;
 }) => {
   return (
-    <div className="relative flex size-full flex-col items-center justify-center px-2.5 py-6 sm:p-8">
+    <div className="relative flex size-full flex-col items-center justify-center px-4 py-8 sm:px-8 sm:py-12 overflow-y-auto">
       {children}
     </div>
   );
@@ -100,7 +100,7 @@ export const AnimatedTextBlockWrapper = ({
           ease: [0.34, 1.56, 0.64, 1],
         },
       }}
-      className="relative flex size-full flex-col items-center justify-center px-2.5 py-6 sm:p-8"
+      className="relative flex size-full flex-col items-center justify-center px-4 py-8 sm:px-8 sm:py-12 overflow-y-auto"
     >
       {children}
     </motion.div>
@@ -123,7 +123,7 @@ export const StaticTextBlockWrapper = ({
   children?: React.ReactNode;
 }) => {
   return (
-    <div className="flex flex-col items-center justify-center">
+    <div className="flex flex-col items-center justify-center max-w-full">
       <img
         src={imgSrc}
         alt="icon"
