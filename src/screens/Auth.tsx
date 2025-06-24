@@ -241,13 +241,12 @@ export const Auth: React.FC = () => {
         if (error) {
           setErrors({ submit: error.message });
         } else if (user) {
-          setSuccessMessage('Account created successfully! Please check your email to verify your account.');
-          // Auto-switch to sign in after successful signup
+          // Since email confirmation is disabled, user is immediately signed in
+          setSuccessMessage('Account created successfully! Welcome to NyxtGen!');
+          // Redirect to intro screen after successful signup
           setTimeout(() => {
-            setIsSignUp(false);
-            setFormData({ email: formData.email, password: '', fullName: '', confirmPassword: '' });
-            setSuccessMessage('');
-          }, 3000);
+            setScreenState({ currentScreen: "intro" });
+          }, 1500);
         }
       } else {
         const { user, error } = await signIn(formData.email, formData.password);
@@ -351,7 +350,7 @@ export const Auth: React.FC = () => {
                 </h1>
                 <p className="text-slate-400 text-sm leading-relaxed">
                   {isSignUp 
-                    ? 'Join NyxtGen to experience the future of AI conversations'
+                    ? 'Join NyxtGen and start experiencing AI conversations instantly'
                     : 'Sign in to continue your AI journey'
                   }
                 </p>
@@ -449,7 +448,7 @@ export const Auth: React.FC = () => {
                     isSignUp ? 'Creating Account...' : 'Signing In...'
                   ) : (
                     <>
-                      {isSignUp ? 'Create Account' : 'Sign In'}
+                      {isSignUp ? 'Create Account & Start' : 'Sign In'}
                       <ArrowRight className="size-5" />
                       <Sparkles className="size-4" />
                     </>
@@ -476,7 +475,7 @@ export const Auth: React.FC = () => {
             <div className="flex items-center justify-center gap-2 pt-2">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                 <Shield className="size-3 text-emerald-400" />
-                <span className="text-xs text-emerald-400 font-medium">Secure & Encrypted</span>
+                <span className="text-xs text-emerald-400 font-medium">Instant Access - No Email Verification</span>
               </div>
             </div>
           </div>

@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Handle user profile creation/update
+        // Handle user profile creation/update for confirmed users
         if (event === 'SIGNED_IN' && session?.user) {
           await createOrUpdateProfile(session.user);
         }
@@ -112,6 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { user: null, error };
       }
 
+      // Since email confirmation is disabled, the user should be automatically signed in
       return { user: data.user, error: null };
     } catch (error) {
       console.error('Sign up exception:', error);
