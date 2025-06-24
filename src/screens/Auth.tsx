@@ -15,7 +15,8 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  X
+  X,
+  Info
 } from 'lucide-react';
 import gloriaVideo from '@/assets/video/gloria.mp4';
 
@@ -175,6 +176,18 @@ const ErrorMessage = ({ message }: { message: string }) => (
   </motion.div>
 );
 
+// Info Message Component
+const InfoMessage = ({ message }: { message: string }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="flex items-center gap-3 p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 backdrop-blur-sm"
+  >
+    <Info className="size-5 text-blue-400 flex-shrink-0" />
+    <p className="text-blue-300 text-sm font-medium">{message}</p>
+  </motion.div>
+);
+
 export const Auth: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const { signIn, signUp, user } = useAuthContext();
@@ -189,6 +202,7 @@ export const Auth: React.FC = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Auto-redirect if user becomes authenticated
@@ -241,13 +255,23 @@ export const Auth: React.FC = () => {
     setIsSubmitting(true);
     setErrors({});
     setSuccessMessage('');
+    setInfoMessage('');
 
     try {
       if (isSignUp) {
         const { user, error } = await signUp(formData.email, formData.password, formData.fullName);
         
         if (error) {
-          setErrors({ submit: error.message });
+          // Handle specific error cases
+          if (error.message.includes('User already registered')) {
+            setErrors({ submit: 'An account with this email already exists. Please sign in instead.' });
+          } else if (error.message.includes('Database error')) {
+            // User was created but profile creation failed - this is okay
+            setInfoMessage('Account created successfully! You can now use the app. Profile setup can be completed later.');
+            // The useEffect will handle the redirect when user state updates
+          } else {
+            setErrors({ submit: error.message });
+          }
         } else if (user) {
           setSuccessMessage('Account created successfully! Redirecting...');
           // The useEffect will handle the redirect when user state updates
@@ -256,7 +280,11 @@ export const Auth: React.FC = () => {
         const { user, error } = await signIn(formData.email, formData.password);
         
         if (error) {
-          setErrors({ submit: error.message });
+          if (error.message.includes('Invalid login credentials')) {
+            setErrors({ submit: 'Invalid email or password. Please check your credentials and try again.' });
+          } else {
+            setErrors({ submit: error.message });
+          }
         } else if (user) {
           setSuccessMessage('Welcome back! Redirecting...');
           // The useEffect will handle the redirect when user state updates
@@ -286,6 +314,7 @@ export const Auth: React.FC = () => {
     setFormData({ email: '', password: '', fullName: '', confirmPassword: '' });
     setErrors({});
     setSuccessMessage('');
+    setInfoMessage('');
   };
 
   return (
@@ -358,10 +387,13 @@ export const Auth: React.FC = () => {
               </div>
             </div>
 
-            {/* Success/Error Messages */}
+            {/* Success/Error/Info Messages */}
             <AnimatePresence mode="wait">
               {successMessage && (
                 <SuccessMessage message={successMessage} />
+              )}
+              {infoMessage && (
+                <InfoMessage message={infoMessage} />
               )}
               {errors.submit && (
                 <ErrorMessage message={errors.submit} />

@@ -64,7 +64,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Only handle profile creation for successful sign-ins
         if (event === 'SIGNED_IN' && session?.user) {
           // Don't await this - let it happen in background
-          createOrUpdateProfile(session.user).catch(console.error);
+          createOrUpdateProfile(session.user).catch(error => {
+            console.error('Background profile creation failed:', error);
+            // Don't throw error here as user is already signed in
+          });
         }
         
         // Ensure loading is false after any auth state change
@@ -79,28 +82,80 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const createOrUpdateProfile = async (user: User) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          email: user.email!,
-          full_name: user.user_metadata?.full_name || null,
-          avatar_url: user.user_metadata?.avatar_url || null,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'id'
+      console.log('Creating/updating profile for user:', user.id);
+      
+      // First check if profile already exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 is "not found" which is expected for new users
+        console.error('Error checking existing profile:', checkError);
+        return;
+      }
+
+      if (existingProfile) {
+        console.log('Profile already exists for user:', user.id);
+        return;
+      }
+
+      // Create new profile using the upsert function
+      const { error: upsertError } = await supabase
+        .rpc('upsert_user_profile', {
+          profile_user_id: user.id,
+          profile_email: user.email || '',
+          full_name: user.user_metadata?.full_name || '',
+          profile_photo: null,
+          cover_photo: null,
+          birthday: null,
+          bio: '',
+          job: '',
+          fashion: '',
+          age: null,
+          relationship_status: 'prefer-not-to-say',
+          location: null,
+          website: null,
+          phone: null
         });
 
-      if (error) {
-        console.error('Error creating/updating profile:', error);
+      if (upsertError) {
+        console.error('Error creating profile with upsert function:', upsertError);
+        
+        // Fallback: try direct insert
+        const { error: insertError } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email || '',
+            full_name: user.user_metadata?.full_name || '',
+            bio: '',
+            job: '',
+            fashion: '',
+            relationship_status: 'prefer-not-to-say'
+          });
+
+        if (insertError) {
+          console.error('Error creating profile with direct insert:', insertError);
+          // Don't throw error - user is still authenticated
+        } else {
+          console.log('Profile created successfully with direct insert');
+        }
+      } else {
+        console.log('Profile created successfully with upsert function');
       }
     } catch (error) {
       console.error('Error in createOrUpdateProfile:', error);
+      // Don't throw error - user is still authenticated
     }
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
+      console.log('Starting sign up process for:', email);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -116,10 +171,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { user: null, error };
       }
 
+      console.log('Sign up successful:', data.user?.email);
+
       // Immediately update local state for instant UI feedback
       if (data.user) {
         setUser(data.user);
         setSession(data.session);
+        
+        // Try to create profile in background, but don't block the sign up process
+        if (data.session) {
+          createOrUpdateProfile(data.user).catch(error => {
+            console.error('Profile creation failed during sign up, but user is authenticated:', error);
+            // User is still successfully signed up even if profile creation fails
+          });
+        }
       }
 
       return { user: data.user, error: null };
@@ -131,6 +196,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Starting sign in process for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -140,6 +207,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Sign in error:', error);
         return { user: null, error };
       }
+
+      console.log('Sign in successful:', data.user?.email);
 
       // Immediately update local state for instant UI feedback
       if (data.user && data.session) {
