@@ -162,14 +162,11 @@ class ChatService {
         throw new Error(`Failed to create group room: ${error.message}`);
       }
 
-      // Add creator as owner
-      await supabase
-        .from('chat_participants')
-        .insert({
-          room_id: data.id,
-          user_id: user.user.id,
-          role: 'owner',
-        });
+      // Add creator as owner using the new function
+      await supabase.rpc('join_chat_room', {
+        room_id_param: data.id,
+        target_user_id: user.user.id
+      });
 
       console.log('Group chat room created:', data.id);
       return data.id;
@@ -217,7 +214,7 @@ class ChatService {
     }
   }
 
-  // Send message with improved error handling
+  // Send message using the new security definer function
   async sendMessage(
     roomId: string,
     content: string,
@@ -228,44 +225,22 @@ class ChatService {
     try {
       console.log('Sending message to room:', roomId);
       
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Check if user is participant in the room
-      const { data: participant, error: participantError } = await supabase
-        .from('chat_participants')
-        .select('id')
-        .eq('room_id', roomId)
-        .eq('user_id', user.user.id)
-        .single();
-
-      if (participantError || !participant) {
-        console.error('User is not a participant in this room:', participantError);
-        throw new Error('You are not a participant in this chat room. Please connect with the user first.');
-      }
-
       const { data, error } = await supabase
-        .from('chat_messages')
-        .insert({
-          room_id: roomId,
-          content,
-          message_type: messageType,
-          sender_id: user.user.id,
-          reply_to: replyTo,
-          metadata: metadata || {},
-        })
-        .select('id')
-        .single();
+        .rpc('send_chat_message', {
+          room_id_param: roomId,
+          content_param: content,
+          message_type_param: messageType,
+          reply_to_param: replyTo,
+          metadata_param: metadata || {}
+        });
 
       if (error) {
         console.error('Error sending message:', error);
         throw new Error(`Failed to send message: ${error.message}`);
       }
 
-      console.log('Message sent:', data.id);
-      return data.id;
+      console.log('Message sent:', data);
+      return data;
     } catch (error) {
       console.error('Send message failed:', error);
       throw error;
@@ -481,6 +456,25 @@ class ChatService {
     } catch (error) {
       console.error('Error getting/creating DM room:', error);
       throw error;
+    }
+  }
+
+  // Debug function to check room access
+  async debugRoomAccess(roomId: string): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .rpc('debug_room_access', { room_id_param: roomId });
+
+      if (error) {
+        console.error('Debug room access error:', error);
+        return null;
+      }
+
+      console.log('Room access debug info:', data);
+      return data;
+    } catch (error) {
+      console.error('Debug room access failed:', error);
+      return null;
     }
   }
 
