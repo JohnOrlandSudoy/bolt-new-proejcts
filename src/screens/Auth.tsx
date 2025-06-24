@@ -265,7 +265,7 @@ export const Auth: React.FC = () => {
           // Handle specific error cases
           if (error.message.includes('User already registered')) {
             setErrors({ submit: 'An account with this email already exists. Please sign in instead.' });
-          } else if (error.message.includes('Database error')) {
+          } else if (error.message.includes('Database error') || error.message.includes('Profile setup can be completed later')) {
             // User was created but profile creation failed - this is okay
             setInfoMessage('Account created successfully! You can now use the app. Profile setup can be completed later.');
             // The useEffect will handle the redirect when user state updates

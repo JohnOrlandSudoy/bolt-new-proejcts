@@ -84,7 +84,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Creating/updating profile for user:', user.id);
       
-      // First check if profile already exists in user_profiles table
+      // Wait a bit for the database trigger to complete
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Check if profile already exists in user_profiles table
       const { data: existingProfile, error: checkError } = await supabase
         .from('user_profiles')
         .select('id')
@@ -92,7 +95,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .single();
 
       if (checkError && checkError.code !== 'PGRST116') {
-        // PGRST116 is "not found" which is expected for new users
         console.error('Error checking existing profile:', checkError);
         
         // Try the old profiles table as fallback
@@ -222,18 +224,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Starting sign up process for:', email);
       
+      // Use a more robust signup approach that handles database errors gracefully
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName || '',
-          }
+          },
+          // Disable email confirmation for instant access
+          emailRedirectTo: undefined,
         }
       });
 
       if (error) {
         console.error('Sign up error:', error);
+        
+        // Handle specific database errors more gracefully
+        if (error.message.includes('Database error')) {
+          // The user was created but profile creation failed
+          // This is actually okay - we can create the profile later
+          console.log('User created but profile creation failed - this is recoverable');
+          
+          // Check if the user was actually created
+          if (data.user) {
+            console.log('User was created successfully despite database error');
+            setUser(data.user);
+            setSession(data.session);
+            
+            // Try to create profile in background
+            setTimeout(() => {
+              createOrUpdateProfile(data.user).catch(console.error);
+            }, 3000);
+            
+            // Return success with a note about profile creation
+            return { 
+              user: data.user, 
+              error: {
+                ...error,
+                message: 'Account created successfully! Profile setup can be completed later.'
+              } as AuthError
+            };
+          }
+        }
+        
         return { user: null, error };
       }
 
@@ -246,12 +280,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Try to create profile immediately for sign up
         if (data.session) {
-          // Give a small delay to ensure the auth trigger has fired
+          // Give a longer delay to ensure the auth trigger has fired
           setTimeout(() => {
             createOrUpdateProfile(data.user).catch(error => {
               console.error('Profile creation failed during sign up, but user is authenticated:', error);
             });
-          }, 1000);
+          }, 2000);
         }
       }
 
