@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Handle user profile creation/update for confirmed users
+        // Handle user profile creation/update for signed in users
         if (event === 'SIGNED_IN' && session?.user) {
           await createOrUpdateProfile(session.user);
         }
@@ -109,30 +109,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('Sign up error:', error);
-        // Handle email confirmation requirement
-        if (error.message?.includes('email_not_confirmed') || error.message?.includes('Email not confirmed')) {
-          return { 
-            user: null, 
-            error: { 
-              ...error, 
-              message: 'Account created! Please check your email and click the confirmation link to complete registration.' 
-            } as AuthError 
-          };
-        }
         return { user: null, error };
       }
 
-      // Check if email confirmation is required
-      if (data.user && !data.session) {
-        return { 
-          user: data.user, 
-          error: { 
-            message: 'Account created! Please check your email and click the confirmation link to complete registration.',
-            name: 'EmailConfirmationRequired'
-          } as AuthError 
-        };
-      }
-
+      // Since email confirmation is disabled, user should be signed in immediately
       return { user: data.user, error: null };
     } catch (error) {
       console.error('Sign up exception:', error);
@@ -152,18 +132,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('Sign in error:', error);
-        
-        // Handle email not confirmed error with user-friendly message
-        if (error.message?.includes('email_not_confirmed') || error.message?.includes('Email not confirmed')) {
-          return { 
-            user: null, 
-            error: { 
-              ...error, 
-              message: 'Please check your email and click the confirmation link before signing in. Check your spam folder if you don\'t see the email.' 
-            } as AuthError 
-          };
-        }
-        
         return { user: null, error };
       }
 
