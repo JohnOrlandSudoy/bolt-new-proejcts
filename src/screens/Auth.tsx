@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import gloriaVideo from '@/assets/video/gloria.mp4';
 
-// Premium Input Component with better visibility
+// Premium Input Component
 const PremiumInput = ({ 
   value, 
   onChange, 
@@ -45,7 +45,7 @@ const PremiumInput = ({
     <div className="relative group">
       <div className="relative">
         {icon && (
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-300 group-focus-within:text-cyan-200 transition-colors z-10">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-400 transition-colors z-10">
             {icon}
           </div>
         )}
@@ -55,10 +55,10 @@ const PremiumInput = ({
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full h-16 px-4 pl-12 pr-12 rounded-2xl bg-slate-800/90 border-2 text-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-400/70 focus:border-cyan-400/70 backdrop-blur-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-base ${
+          className={`w-full h-14 px-4 pl-12 pr-12 rounded-2xl bg-slate-900/70 border-2 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
             error 
-              ? 'border-red-400/70 focus:border-red-400 focus:ring-red-400/70' 
-              : 'border-slate-600/70 hover:border-slate-500/90'
+              ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50' 
+              : 'border-slate-700/50 hover:border-slate-600/70'
           }`}
           style={{ fontFamily: "'Inter', sans-serif" }}
         />
@@ -67,9 +67,9 @@ const PremiumInput = ({
             type="button"
             onClick={onToggle}
             disabled={disabled}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-cyan-300 hover:text-cyan-200 transition-colors z-10 disabled:opacity-50 p-2 rounded-lg hover:bg-white/10"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-400 transition-colors z-10 disabled:opacity-50"
           >
-            {type === "password" ? <Eye className="size-5" /> : <EyeOff className="size-5" />}
+            {type === "password" ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
           </button>
         )}
       </div>
@@ -79,9 +79,9 @@ const PremiumInput = ({
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 mt-3 text-red-300 text-sm font-medium bg-red-500/10 p-3 rounded-xl border border-red-500/30"
+          className="flex items-center gap-2 mt-2 text-red-400 text-sm"
         >
-          <AlertCircle className="size-4 flex-shrink-0" />
+          <AlertCircle className="size-4" />
           {error}
         </motion.div>
       )}
@@ -89,14 +89,14 @@ const PremiumInput = ({
       {/* Focus glow effect */}
       <div className={`absolute inset-0 rounded-2xl transition-opacity duration-300 blur-sm -z-10 ${
         error 
-          ? 'bg-gradient-to-r from-red-500/30 to-red-500/30 opacity-0 group-focus-within:opacity-100'
-          : 'bg-gradient-to-r from-cyan-500/30 to-blue-500/30 opacity-0 group-focus-within:opacity-100'
+          ? 'bg-gradient-to-r from-red-500/20 to-red-500/20 opacity-0 group-focus-within:opacity-100'
+          : 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100'
       }`} />
     </div>
   );
 };
 
-// Premium Button Component with better visibility
+// Premium Button Component
 const PremiumButton = ({ 
   children, 
   onClick, 
@@ -114,12 +114,12 @@ const PremiumButton = ({
   className?: string;
   [key: string]: any;
 }) => {
-  const baseStyles = "relative group overflow-hidden w-full h-16 rounded-2xl font-bold text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseStyles = "relative group overflow-hidden w-full h-14 rounded-2xl font-semibold text-base transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variants = {
-    primary: "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-xl shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/50 hover:scale-[1.02] disabled:hover:scale-100 border-2 border-cyan-400/50",
-    secondary: "border-2 border-white/50 bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm hover:border-white/70 shadow-lg",
-    ghost: "text-cyan-300 hover:text-cyan-200 hover:bg-white/15 font-semibold"
+    primary: "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 hover:scale-[1.02] disabled:hover:scale-100",
+    secondary: "border-2 border-white/30 bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm hover:border-white/50",
+    ghost: "text-cyan-400 hover:text-cyan-300 hover:bg-white/10"
   };
 
   return (
@@ -137,7 +137,7 @@ const PremiumButton = ({
       {/* Content */}
       <span className="relative z-10 flex items-center justify-center gap-3">
         {loading ? (
-          <Loader2 className="size-6 animate-spin" />
+          <Loader2 className="size-5 animate-spin" />
         ) : (
           children
         )}
@@ -151,27 +151,27 @@ const PremiumButton = ({
   );
 };
 
-// Success Message Component with better visibility
+// Success Message Component
 const SuccessMessage = ({ message }: { message: string }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
     animate={{ opacity: 1, scale: 1 }}
-    className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/20 border-2 border-emerald-400/50 backdrop-blur-sm shadow-lg"
+    className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm"
   >
-    <CheckCircle className="size-6 text-emerald-300 flex-shrink-0" />
-    <p className="text-emerald-200 text-base font-semibold">{message}</p>
+    <CheckCircle className="size-5 text-emerald-400 flex-shrink-0" />
+    <p className="text-emerald-300 text-sm font-medium">{message}</p>
   </motion.div>
 );
 
-// Error Message Component with better visibility
+// Error Message Component
 const ErrorMessage = ({ message }: { message: string }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
     animate={{ opacity: 1, scale: 1 }}
-    className="flex items-center gap-3 p-4 rounded-xl bg-red-500/20 border-2 border-red-400/50 backdrop-blur-sm shadow-lg"
+    className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30 backdrop-blur-sm"
   >
-    <AlertCircle className="size-6 text-red-300 flex-shrink-0" />
-    <p className="text-red-200 text-base font-semibold">{message}</p>
+    <AlertCircle className="size-5 text-red-400 flex-shrink-0" />
+    <p className="text-red-300 text-sm font-medium">{message}</p>
   </motion.div>
 );
 
@@ -288,7 +288,7 @@ export const Auth: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Enhanced Video Background with stronger overlay */}
+      {/* Enhanced Video Background */}
       <div className="absolute inset-0 z-0">
         <video
           src={gloriaVideo}
@@ -298,8 +298,8 @@ export const Auth: React.FC = () => {
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/98 via-black/95 to-slate-900/90" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.15),transparent_70%)]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/95 via-black/90 to-slate-900/80" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.1),transparent_70%)]" />
       </div>
 
       {/* Modal Container */}
@@ -308,46 +308,46 @@ export const Auth: React.FC = () => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-lg"
+        className="relative z-10 w-full max-w-md"
       >
-        {/* Main Card with better contrast */}
-        <div className="relative p-10 rounded-3xl bg-gradient-to-br from-slate-900/98 via-slate-800/95 to-slate-900/98 backdrop-blur-xl border-2 border-slate-600/70 shadow-2xl">
+        {/* Main Card */}
+        <div className="relative p-8 rounded-3xl bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl">
           
           {/* Close Button */}
           <button
             onClick={handleClose}
-            className="absolute top-6 right-6 p-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/20 transition-all duration-200 border border-slate-600/50 hover:border-slate-500"
+            className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-200"
           >
-            <X className="size-6" />
+            <X className="size-5" />
           </button>
 
           {/* Animated background gradient */}
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10 animate-pulse" />
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 animate-pulse" />
           
           {/* Premium border glow */}
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-cyan-500/30 via-transparent to-purple-500/30 blur-xl opacity-60" />
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-cyan-500/20 via-transparent to-purple-500/20 blur-xl opacity-50" />
           
           {/* Content */}
-          <div className="relative z-10 space-y-8">
+          <div className="relative z-10 space-y-6">
             
             {/* Header */}
-            <div className="text-center space-y-6">
+            <div className="text-center space-y-4">
               {/* Logo */}
-              <div className="relative mx-auto w-20 h-20">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/40 to-purple-500/40 blur-xl animate-pulse" />
-                <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 border-2 border-slate-600/70 shadow-2xl">
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/30 via-transparent to-purple-500/30" />
-                  <Shield className="size-10 text-cyan-300 relative z-10 drop-shadow-lg" />
-                  <div className="absolute inset-0 rounded-2xl border border-white/20" />
+              <div className="relative mx-auto w-16 h-16">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/30 to-purple-500/30 blur-xl animate-pulse" />
+                <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/50 shadow-2xl">
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-500/20" />
+                  <Shield className="size-8 text-cyan-400 relative z-10 drop-shadow-lg" />
+                  <div className="absolute inset-0 rounded-2xl border border-white/10" />
                 </div>
               </div>
 
               {/* Title and Description */}
-              <div className="space-y-3">
-                <h1 className="text-4xl font-bold text-white">
+              <div className="space-y-2">
+                <h1 className="text-3xl font-bold text-white">
                   {isSignUp ? 'Create Account' : 'Welcome Back'}
                 </h1>
-                <p className="text-slate-300 text-lg leading-relaxed font-medium">
+                <p className="text-slate-400 text-sm leading-relaxed">
                   {isSignUp 
                     ? 'Join NyxtGen and start experiencing AI conversations instantly'
                     : 'Sign in to continue your AI journey'
@@ -367,7 +367,7 @@ export const Auth: React.FC = () => {
             </AnimatePresence>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               
               {/* Full Name (Sign Up Only) */}
               <AnimatePresence>
@@ -378,14 +378,11 @@ export const Auth: React.FC = () => {
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <label className="block text-white font-semibold text-base mb-3">
-                      Full Name
-                    </label>
                     <PremiumInput
                       value={formData.fullName}
                       onChange={handleInputChange('fullName')}
                       placeholder="Enter your full name"
-                      icon={<User className="size-5" />}
+                      icon={<User className="size-4" />}
                       error={errors.fullName}
                       disabled={isSubmitting}
                     />
@@ -394,38 +391,28 @@ export const Auth: React.FC = () => {
               </AnimatePresence>
 
               {/* Email */}
-              <div>
-                <label className="block text-white font-semibold text-base mb-3">
-                  Email Address
-                </label>
-                <PremiumInput
-                  value={formData.email}
-                  onChange={handleInputChange('email')}
-                  placeholder="Enter your email address"
-                  type="email"
-                  icon={<Mail className="size-5" />}
-                  error={errors.email}
-                  disabled={isSubmitting}
-                />
-              </div>
+              <PremiumInput
+                value={formData.email}
+                onChange={handleInputChange('email')}
+                placeholder="Enter your email address"
+                type="email"
+                icon={<Mail className="size-4" />}
+                error={errors.email}
+                disabled={isSubmitting}
+              />
 
               {/* Password */}
-              <div>
-                <label className="block text-white font-semibold text-base mb-3">
-                  Password
-                </label>
-                <PremiumInput
-                  value={formData.password}
-                  onChange={handleInputChange('password')}
-                  placeholder="Enter your password"
-                  type={showPassword ? "text" : "password"}
-                  icon={<Lock className="size-5" />}
-                  showToggle={true}
-                  onToggle={() => setShowPassword(!showPassword)}
-                  error={errors.password}
-                  disabled={isSubmitting}
-                />
-              </div>
+              <PremiumInput
+                value={formData.password}
+                onChange={handleInputChange('password')}
+                placeholder="Enter your password"
+                type={showPassword ? "text" : "password"}
+                icon={<Lock className="size-4" />}
+                showToggle={true}
+                onToggle={() => setShowPassword(!showPassword)}
+                error={errors.password}
+                disabled={isSubmitting}
+              />
 
               {/* Confirm Password (Sign Up Only) */}
               <AnimatePresence>
@@ -436,15 +423,12 @@ export const Auth: React.FC = () => {
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <label className="block text-white font-semibold text-base mb-3">
-                      Confirm Password
-                    </label>
                     <PremiumInput
                       value={formData.confirmPassword}
                       onChange={handleInputChange('confirmPassword')}
                       placeholder="Confirm your password"
                       type={showPassword ? "text" : "password"}
-                      icon={<Lock className="size-5" />}
+                      icon={<Lock className="size-4" />}
                       error={errors.confirmPassword}
                       disabled={isSubmitting}
                     />
@@ -453,7 +437,7 @@ export const Auth: React.FC = () => {
               </AnimatePresence>
 
               {/* Submit Button */}
-              <div className="pt-4">
+              <div className="pt-2">
                 <PremiumButton
                   type="submit"
                   loading={isSubmitting}
@@ -464,8 +448,8 @@ export const Auth: React.FC = () => {
                   ) : (
                     <>
                       {isSignUp ? 'Create Account' : 'Sign In'}
-                      <ArrowRight className="size-6" />
-                      <Sparkles className="size-5" />
+                      <ArrowRight className="size-5" />
+                      <Sparkles className="size-4" />
                     </>
                   )}
                 </PremiumButton>
@@ -473,8 +457,8 @@ export const Auth: React.FC = () => {
             </form>
 
             {/* Switch Mode */}
-            <div className="text-center pt-6 border-t-2 border-slate-600/50">
-              <p className="text-slate-300 text-base mb-4 font-medium">
+            <div className="text-center pt-4 border-t border-slate-700/50">
+              <p className="text-slate-400 text-sm mb-3">
                 {isSignUp ? 'Already have an account?' : "Don't have an account?"}
               </p>
               <PremiumButton
@@ -487,17 +471,17 @@ export const Auth: React.FC = () => {
             </div>
 
             {/* Security Badge */}
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <div className="flex items-center gap-3 px-4 py-3 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 shadow-lg">
-                <Shield className="size-4 text-emerald-300" />
-                <span className="text-sm text-emerald-200 font-bold">Instant Access - No Email Verification</span>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <Shield className="size-3 text-emerald-400" />
+                <span className="text-xs text-emerald-400 font-medium">Instant Access - No Email Verification</span>
               </div>
             </div>
           </div>
 
           {/* Decorative elements */}
-          <div className="absolute top-6 left-6 w-3 h-3 bg-cyan-400 rounded-full animate-pulse opacity-80" />
-          <div className="absolute bottom-6 right-6 w-2 h-2 bg-purple-400 rounded-full animate-pulse opacity-60" />
+          <div className="absolute top-4 left-4 w-2 h-2 bg-cyan-400 rounded-full animate-pulse opacity-60" />
+          <div className="absolute bottom-4 right-4 w-1 h-1 bg-purple-400 rounded-full animate-pulse opacity-40" />
         </div>
 
         {/* Floating particles around modal */}
@@ -505,14 +489,14 @@ export const Auth: React.FC = () => {
           {[...Array(8)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-1 h-1 bg-cyan-400/40 rounded-full"
+              className="absolute w-1 h-1 bg-cyan-400/30 rounded-full"
               style={{
                 left: `${10 + (i * 12)}%`,
                 top: `${15 + (i * 8)}%`,
               }}
               animate={{
                 y: [-10, 10, -10],
-                opacity: [0.4, 0.8, 0.4],
+                opacity: [0.3, 0.8, 0.3],
                 scale: [0.5, 1, 0.5],
               }}
               transition={{

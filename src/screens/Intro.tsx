@@ -92,7 +92,7 @@ const PremiumLogo = () => {
   );
 };
 
-// Premium Input Component with better visibility
+// Premium Input Component
 const PremiumInput = ({ 
   value, 
   onChange, 
@@ -112,9 +112,10 @@ const PremiumInput = ({
 }) => {
   return (
     <div className="relative group">
+      {/* Input field */}
       <div className="relative">
         {icon && (
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-300 group-focus-within:text-cyan-200 transition-colors z-10">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-400 transition-colors z-10">
             {icon}
           </div>
         )}
@@ -123,46 +124,46 @@ const PremiumInput = ({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className="w-full h-16 px-4 pl-12 pr-12 rounded-2xl bg-slate-800/90 border-2 border-slate-600/70 text-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-400/70 focus:border-cyan-400/70 backdrop-blur-sm transition-all duration-200 font-mono text-base font-medium hover:border-slate-500/90"
+          className="w-full h-14 px-4 pl-12 pr-12 rounded-2xl bg-slate-900/50 border border-slate-700/50 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all duration-200 font-mono text-sm"
           style={{ fontFamily: "'Source Code Pro', monospace" }}
         />
         {showToggle && (
           <button
             type="button"
             onClick={onToggle}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-cyan-300 hover:text-cyan-200 transition-colors z-10 p-2 rounded-lg hover:bg-white/10"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-400 transition-colors z-10"
           >
-            {type === "password" ? <Eye className="size-5" /> : <EyeOff className="size-5" />}
+            {type === "password" ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
           </button>
         )}
       </div>
       
-      {/* Enhanced focus glow effect */}
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/30 to-blue-500/30 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm -z-10" />
+      {/* Animated border glow */}
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm -z-10" />
     </div>
   );
 };
 
-// User Info Component with better visibility
+// User Info Component
 const UserInfo = ({ user, onSignOut }: { user: any; onSignOut: () => void }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-between p-5 rounded-xl bg-emerald-500/20 border-2 border-emerald-400/50 backdrop-blur-sm mb-6 shadow-lg"
+      className="flex items-center justify-between p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm mb-6"
     >
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center shadow-lg">
-          <User className="size-6 text-white" />
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center">
+          <User className="size-5 text-white" />
         </div>
         <div>
-          <p className="text-white font-bold text-lg">{user.email}</p>
-          <p className="text-emerald-200 text-sm font-semibold">✓ Authenticated</p>
+          <p className="text-white font-medium">{user.email}</p>
+          <p className="text-emerald-300 text-sm">Authenticated</p>
         </div>
       </div>
       <button
         onClick={onSignOut}
-        className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-red-200 hover:text-red-100 transition-all duration-200 text-sm font-semibold border border-red-400/50 hover:border-red-400/70"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 transition-all duration-200 text-sm"
       >
         <LogOut className="size-4" />
         Sign Out
@@ -211,7 +212,7 @@ export const Intro: React.FC = () => {
   // Show loading while checking authentication
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-black">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-white text-lg">Checking authentication...</p>
@@ -228,7 +229,7 @@ export const Intro: React.FC = () => {
   return (
     <AnimatedWrapper>
       <div className="flex size-full flex-col items-center justify-center relative">
-        {/* Enhanced Video Background with stronger overlay */}
+        {/* Enhanced Video Background */}
         <video
           src={gloriaVideo}
           autoPlay
@@ -238,39 +239,39 @@ export const Intro: React.FC = () => {
           className="absolute inset-0 h-full w-full object-cover"
         />
         
-        {/* Multi-layered overlay for better contrast */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/98 via-black/95 to-slate-900/90" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-transparent to-black/70" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.15),transparent_70%)]" />
+        {/* Multi-layered overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/80 to-slate-900/70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/50" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.1),transparent_70%)]" />
 
         {/* Premium Card Container */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 w-full max-w-lg mx-4"
+          className="relative z-10 w-full max-w-md mx-4"
         >
-          {/* Main Card with better contrast */}
-          <div className="relative p-10 rounded-3xl bg-gradient-to-br from-slate-900/98 via-slate-800/95 to-slate-900/98 backdrop-blur-xl border-2 border-slate-600/70 shadow-2xl">
+          {/* Main Card */}
+          <div className="relative p-8 rounded-3xl bg-gradient-to-br from-slate-900/90 via-slate-800/80 to-slate-900/90 backdrop-blur-xl border border-slate-700/50 shadow-2xl">
             
             {/* Animated background gradient */}
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10 animate-pulse" />
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 animate-pulse" />
             
             {/* Premium border glow */}
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-cyan-500/30 via-transparent to-purple-500/30 blur-xl opacity-60" />
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-cyan-500/20 via-transparent to-purple-500/20 blur-xl opacity-50" />
             
             {/* Content */}
-            <div className="relative z-10 space-y-8">
+            <div className="relative z-10 space-y-6">
               
               {/* Logo and Title */}
               <div className="text-center">
                 <PremiumLogo />
                 
-                <div className="space-y-3">
-                  <h2 className="text-3xl font-bold text-white">
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold text-white">
                     Welcome Back!
                   </h2>
-                  <p className="text-slate-300 text-lg leading-relaxed font-medium">
+                  <p className="text-slate-400 text-sm leading-relaxed">
                     You're authenticated and ready to experience AI conversations
                   </p>
                 </div>
@@ -280,12 +281,12 @@ export const Intro: React.FC = () => {
               {user && <UserInfo user={user} onSignOut={handleSignOut} />}
 
               {/* API Key Input Section */}
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <label className="flex items-center gap-2 text-lg font-bold text-white">
-                    <Key className="size-5 text-cyan-400" />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                    <Key className="size-4 text-cyan-400" />
                     Tavus API Key
-                    <span className="text-red-400 text-xl">*</span>
+                    <span className="text-red-400">*</span>
                   </label>
                   
                   <PremiumInput
@@ -293,42 +294,42 @@ export const Intro: React.FC = () => {
                     onChange={handleTokenChange}
                     placeholder="Enter your API key (required)"
                     type={showPassword ? "text" : "password"}
-                    icon={<Shield className="size-5" />}
+                    icon={<Shield className="size-4" />}
                     showToggle={true}
                     onToggle={() => setShowPassword(!showPassword)}
                   />
                 </div>
 
                 {/* Help Text */}
-                <div className="flex items-center justify-center gap-2 text-base">
-                  <span className="text-slate-300 font-medium">Don't have a key?</span>
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  <span className="text-slate-500">Don't have a key?</span>
                   <a
                     href="https://platform.tavus.io/api-keys"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-cyan-300 hover:text-cyan-200 font-bold hover:underline transition-colors flex items-center gap-1"
+                    className="text-cyan-400 hover:text-cyan-300 font-medium hover:underline transition-colors flex items-center gap-1"
                   >
                     Create account
-                    <ArrowRight className="size-4" />
+                    <ArrowRight className="size-3" />
                   </a>
                 </div>
               </div>
 
               {/* Premium CTA Button */}
-              <div className="pt-4">
+              <div className="pt-2">
                 <AudioButton 
                   onClick={handleClick}
                   disabled={!token}
-                  className="group relative w-full h-16 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold text-lg shadow-xl shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/50 disabled:shadow-none transition-all duration-300 hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed border-2 border-cyan-400/50 disabled:border-slate-600/50 overflow-hidden"
+                  className="group relative w-full h-14 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold text-base shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 disabled:shadow-none transition-all duration-300 hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed border-0 overflow-hidden"
                 >
                   {/* Animated background */}
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   
                   {/* Content */}
                   <span className="relative z-10 flex items-center justify-center gap-3">
-                    <Unlock className="size-6" />
+                    <Unlock className="size-5" />
                     {token ? "Start AI Experience" : "Enter API Key Required"}
-                    <Sparkles className="size-5 group-hover:animate-spin" />
+                    <Sparkles className="size-4 group-hover:animate-spin" />
                   </span>
                   
                   {/* Shine effect */}
@@ -337,17 +338,17 @@ export const Intro: React.FC = () => {
               </div>
 
               {/* Security Badge */}
-              <div className="flex items-center justify-center gap-2 pt-4">
-                <div className="flex items-center gap-3 px-4 py-3 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 shadow-lg">
-                  <Shield className="size-4 text-emerald-300" />
-                  <span className="text-sm text-emerald-200 font-bold">Authenticated & Secure</span>
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  <Shield className="size-3 text-emerald-400" />
+                  <span className="text-xs text-emerald-400 font-medium">Authenticated & Secure</span>
                 </div>
               </div>
             </div>
 
             {/* Decorative elements */}
-            <div className="absolute top-6 right-6 w-3 h-3 bg-cyan-400 rounded-full animate-pulse opacity-80" />
-            <div className="absolute bottom-6 left-6 w-2 h-2 bg-purple-400 rounded-full animate-pulse opacity-60" />
+            <div className="absolute top-4 right-4 w-2 h-2 bg-cyan-400 rounded-full animate-pulse opacity-60" />
+            <div className="absolute bottom-4 left-4 w-1 h-1 bg-purple-400 rounded-full animate-pulse opacity-40" />
           </div>
 
           {/* Floating particles around card */}
@@ -355,14 +356,14 @@ export const Intro: React.FC = () => {
             {[...Array(6)].map((_, i) => (
               <motion.div
                 key={i}
-                className="absolute w-1 h-1 bg-cyan-400/40 rounded-full"
+                className="absolute w-1 h-1 bg-cyan-400/30 rounded-full"
                 style={{
                   left: `${10 + (i * 15)}%`,
                   top: `${20 + (i * 10)}%`,
                 }}
                 animate={{
                   y: [-10, 10, -10],
-                  opacity: [0.4, 0.8, 0.4],
+                  opacity: [0.3, 0.8, 0.3],
                   scale: [0.5, 1, 0.5],
                 }}
                 transition={{
