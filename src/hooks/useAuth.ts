@@ -98,7 +98,7 @@ export const useAuth = () => {
     }
   };
 
-  // Sign up with email and password
+  // Sign up with email and password (no email confirmation required)
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
       setIsLoading(true);
@@ -107,6 +107,7 @@ export const useAuth = () => {
         email,
         password,
         options: {
+          emailRedirectTo: undefined, // Disable email confirmation
           data: {
             full_name: fullName || '',
           }
@@ -115,7 +116,7 @@ export const useAuth = () => {
 
       if (error) throw error;
 
-      // Create profile record
+      // Create profile record immediately since no email confirmation is needed
       if (data.user) {
         await createUserProfile(data.user.id, email, fullName);
       }
@@ -150,7 +151,7 @@ export const useAuth = () => {
     }
   };
 
-  // Auto sign up/in (for seamless experience)
+  // Auto sign up/in (for seamless experience, no email confirmation)
   const autoSignUpOrIn = async (email: string, password?: string) => {
     try {
       setIsLoading(true);
@@ -165,7 +166,7 @@ export const useAuth = () => {
         return { data: signInResult.data, error: null, action: 'signin' };
       }
 
-      // If sign in fails, try to sign up
+      // If sign in fails, try to sign up (no email confirmation needed)
       const signUpResult = await signUp(email, userPassword);
       
       if (signUpResult.data?.user) {

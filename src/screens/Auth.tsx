@@ -468,7 +468,7 @@ const SignUpForm = ({
         return;
       }
 
-      setSuccess('Account created successfully! Welcome to NyxtGen AI.');
+      setSuccess('Account created successfully! You can now access NyxtGen AI.');
       setTimeout(() => {
         onSuccess();
       }, 1500);
@@ -600,6 +600,16 @@ const SignUpForm = ({
           Create Account
           <ArrowRight className="size-3" />
         </PremiumButton>
+      </div>
+
+      {/* Info Message */}
+      <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          <CheckCircle className="size-4 text-cyan-400 flex-shrink-0" />
+          <p className="text-cyan-300 text-sm font-medium">
+            No email verification required - instant access to your account!
+          </p>
+        </div>
       </div>
     </motion.div>
   );
