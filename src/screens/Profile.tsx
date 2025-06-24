@@ -512,6 +512,7 @@ export const Profile: React.FC = () => {
   // Load profile data when component mounts
   useEffect(() => {
     if (user?.id && isAuthenticated) {
+      console.log('Loading profile for user:', user.id);
       const store = getDefaultStore();
       store.set(loadProfileAtom, user.id);
     }
@@ -556,28 +557,39 @@ export const Profile: React.FC = () => {
     setSaveStatus({ type: "info", message: "Saving your profile..." });
     
     try {
-      console.log('Saving profile:', profile);
+      console.log('Starting profile save process...');
+      console.log('Current profile data:', profile);
+      console.log('User ID:', user?.id);
+      console.log('User email:', user?.email);
       
-      // Ensure we have the user's email
+      // Ensure we have the user's email and required data
       const updatedProfile = {
         ...profile,
         email: user?.email || profile.email || "",
         updatedAt: new Date().toISOString(),
       };
       
+      console.log('Updated profile data:', updatedProfile);
+      
       // Update the profile atom first
       setProfile(updatedProfile);
       
       if (user?.id) {
+        console.log('Attempting to save to Supabase...');
+        
         // Save to Supabase using the store action
         const store = getDefaultStore();
         await store.set(saveProfileAtom, user.id);
+        
+        console.log('Profile saved successfully to Supabase!');
         
         setSaveStatus({ 
           type: "success", 
           message: "Profile saved successfully to cloud!" 
         });
       } else {
+        console.log('No user ID, saving to localStorage only');
+        
         // Fallback to localStorage only
         localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
         setProfileSaved(true);
@@ -621,6 +633,7 @@ export const Profile: React.FC = () => {
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
+    console.log('Updating profile with:', updates);
     setProfile(prev => ({ ...prev, ...updates }));
     // Clear related errors
     Object.keys(updates).forEach(key => {

@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import { supabase, profileService } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export interface UserProfile {
   id?: string;
@@ -61,33 +61,54 @@ export const loadProfileAtom = atom(
     set(profileLoadingAtom, true);
     try {
       console.log('Loading profile for user:', userId);
-      const profileData = await profileService.getUserProfile(userId);
       
-      console.log('Received profile data:', profileData);
+      // First try to get the profile data
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
       
-      if (profileData && profileData.profile) {
-        const profile = profileData.profile;
-        const interests = profileData.interests || [];
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error loading profile:', profileError);
+        throw profileError;
+      }
+      
+      // Get interests separately
+      const { data: interestsData, error: interestsError } = await supabase
+        .from('user_interests')
+        .select('interest')
+        .eq('user_id', userId);
+      
+      if (interestsError) {
+        console.error('Error loading interests:', interestsError);
+      }
+      
+      console.log('Profile data from Supabase:', profileData);
+      console.log('Interests data from Supabase:', interestsData);
+      
+      if (profileData) {
+        const interests = interestsData?.map(item => item.interest) || [];
         
         const userProfile: UserProfile = {
-          id: profile.id,
-          user_id: profile.user_id,
-          email: profile.email,
-          profilePhoto: profile.profile_photo,
-          coverPhoto: profile.cover_photo,
-          fullName: profile.full_name || "",
-          birthday: profile.birthday,
-          bio: profile.bio || "",
-          job: profile.job || "",
-          fashion: profile.fashion || "",
-          age: profile.age,
-          relationshipStatus: profile.relationship_status || "prefer-not-to-say",
-          location: profile.location,
+          id: profileData.id,
+          user_id: profileData.user_id,
+          email: profileData.email,
+          profilePhoto: profileData.profile_photo,
+          coverPhoto: profileData.cover_photo,
+          fullName: profileData.full_name || "",
+          birthday: profileData.birthday,
+          bio: profileData.bio || "",
+          job: profileData.job || "",
+          fashion: profileData.fashion || "",
+          age: profileData.age,
+          relationshipStatus: profileData.relationship_status || "prefer-not-to-say",
+          location: profileData.location,
           interests: interests,
-          website: profile.website,
-          phone: profile.phone,
-          createdAt: profile.created_at,
-          updatedAt: profile.updated_at,
+          website: profileData.website,
+          phone: profileData.phone,
+          createdAt: profileData.created_at,
+          updatedAt: profileData.updated_at,
         };
         
         console.log('Setting profile:', userProfile);
@@ -124,34 +145,95 @@ export const saveProfileAtom = atom(
       const profile = get(userProfileAtom);
       
       console.log('Saving profile to Supabase:', profile);
+      console.log('User ID:', userId);
       
       // Prepare profile data for Supabase
       const profileData = {
+        user_id: userId,
         email: profile.email || "",
-        profilePhoto: profile.profilePhoto || null,
-        coverPhoto: profile.coverPhoto || null,
-        fullName: profile.fullName || "",
+        profile_photo: profile.profilePhoto || null,
+        cover_photo: profile.coverPhoto || null,
+        full_name: profile.fullName || "",
         birthday: profile.birthday || null,
         bio: profile.bio || "",
         job: profile.job || "",
         fashion: profile.fashion || "",
         age: profile.age || null,
-        relationshipStatus: profile.relationshipStatus || "prefer-not-to-say",
+        relationship_status: profile.relationshipStatus || "prefer-not-to-say",
         location: profile.location || null,
         website: profile.website || null,
         phone: profile.phone || null,
-        interests: profile.interests || [],
       };
       
-      // Save to Supabase
-      await profileService.saveCompleteProfile(userId, profileData);
+      console.log('Profile data to upsert:', profileData);
       
-      console.log('Profile saved successfully to Supabase');
+      // Upsert profile data
+      const { data: upsertedProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .upsert(profileData, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        })
+        .select()
+        .single();
+      
+      if (profileError) {
+        console.error('Error upserting profile:', profileError);
+        throw profileError;
+      }
+      
+      console.log('Profile upserted successfully:', upsertedProfile);
+      
+      // Handle interests separately
+      if (profile.interests && profile.interests.length > 0) {
+        console.log('Saving interests:', profile.interests);
+        
+        // First delete existing interests
+        const { error: deleteError } = await supabase
+          .from('user_interests')
+          .delete()
+          .eq('user_id', userId);
+        
+        if (deleteError) {
+          console.error('Error deleting existing interests:', deleteError);
+        }
+        
+        // Then insert new interests
+        const interestsToInsert = profile.interests.map(interest => ({
+          user_id: userId,
+          interest: interest
+        }));
+        
+        const { error: interestsError } = await supabase
+          .from('user_interests')
+          .insert(interestsToInsert);
+        
+        if (interestsError) {
+          console.error('Error inserting interests:', interestsError);
+          throw interestsError;
+        }
+        
+        console.log('Interests saved successfully');
+      } else {
+        // Clear all interests if none provided
+        const { error: deleteError } = await supabase
+          .from('user_interests')
+          .delete()
+          .eq('user_id', userId);
+        
+        if (deleteError) {
+          console.error('Error clearing interests:', deleteError);
+        }
+      }
+      
+      console.log('Complete profile saved successfully to Supabase');
       
       // Update the profile with the current timestamp
       const updatedProfile = {
         ...profile,
-        updatedAt: new Date().toISOString(),
+        id: upsertedProfile.id,
+        user_id: upsertedProfile.user_id,
+        updatedAt: upsertedProfile.updated_at,
       };
       
       set(userProfileAtom, updatedProfile);
