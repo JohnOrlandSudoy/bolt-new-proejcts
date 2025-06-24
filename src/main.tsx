@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import { DailyProvider } from "@daily-co/daily-react";
+import { AuthProvider } from "./components/AuthProvider";
 
 import "./fonts/Christmas and Santona.ttf";
 import "./index.css";
@@ -9,7 +10,9 @@ import "./index.css";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <DailyProvider>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </DailyProvider>
   </React.StrictMode>,
 );

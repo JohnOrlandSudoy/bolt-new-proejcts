@@ -1,0 +1,39 @@
+import { useEffect } from 'react';
+import { useAuthContext } from '@/components/AuthProvider';
+import { useAtom } from 'jotai';
+import { screenAtom } from '@/store/screens';
+
+interface UseAuthGuardOptions {
+  redirectTo?: string;
+  showAuthModal?: boolean;
+  onUnauthorized?: () => void;
+}
+
+export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
+  const { 
+    redirectTo = "auth", 
+    showAuthModal = true,
+    onUnauthorized 
+  } = options;
+  
+  const { user, loading } = useAuthContext();
+  const [, setScreenState] = useAtom(screenAtom);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      if (onUnauthorized) {
+        onUnauthorized();
+      } else if (showAuthModal) {
+        setScreenState({ currentScreen: "auth" });
+      } else {
+        setScreenState({ currentScreen: redirectTo as any });
+      }
+    }
+  }, [user, loading, redirectTo, showAuthModal, onUnauthorized, setScreenState]);
+
+  return {
+    isAuthenticated: !!user,
+    isLoading: loading,
+    user
+  };
+};

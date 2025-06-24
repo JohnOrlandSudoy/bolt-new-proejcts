@@ -1,13 +1,15 @@
 import { AnimatedWrapper } from "@/components/DialogWrapper";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
 import { screenAtom } from "@/store/screens";
-import { Unlock, Key, Shield, Sparkles, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Unlock, Key, Shield, Sparkles, ArrowRight, Eye, EyeOff, User, LogOut } from "lucide-react";
 import AudioButton from "@/components/AudioButton";
 import { apiTokenAtom } from "@/store/tokens";
 import { Input } from "@/components/ui/input";
 import gloriaVideo from "@/assets/video/gloria.mp4";
 import { motion } from "framer-motion";
+import { useAuthContext } from "@/components/AuthProvider";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 // Premium NyxtGen Logo Component
 const PremiumLogo = () => {
@@ -142,12 +144,57 @@ const PremiumInput = ({
   );
 };
 
+// User Info Component
+const UserInfo = ({ user, onSignOut }: { user: any; onSignOut: () => void }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center justify-between p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm mb-6"
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center">
+          <User className="size-5 text-white" />
+        </div>
+        <div>
+          <p className="text-white font-medium">{user.email}</p>
+          <p className="text-emerald-300 text-sm">Authenticated</p>
+        </div>
+      </div>
+      <button
+        onClick={onSignOut}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 transition-all duration-200 text-sm"
+      >
+        <LogOut className="size-4" />
+        Sign Out
+      </button>
+    </motion.div>
+  );
+};
+
 export const Intro: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [token, setToken] = useAtom(apiTokenAtom);
   const [showPassword, setShowPassword] = useState(false);
+  const { user, signOut } = useAuthContext();
+  
+  // Enforce authentication for this screen
+  const { isAuthenticated, isLoading } = useAuthGuard({
+    showAuthModal: true,
+    redirectTo: "auth"
+  });
 
   const handleClick = () => {
+    if (!isAuthenticated) {
+      setScreenState({ currentScreen: "auth" });
+      return;
+    }
+    
+    if (!token) {
+      // Show error message or focus on token input
+      return;
+    }
+    
     setScreenState({ currentScreen: "instructions" });
   };
 
@@ -156,6 +203,28 @@ export const Intro: React.FC = () => {
     setToken(newToken);
     localStorage.setItem('tavus-token', newToken);
   };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setScreenState({ currentScreen: "home" });
+  };
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-white text-lg">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, this will be handled by useAuthGuard
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <AnimatedWrapper>
@@ -200,13 +269,16 @@ export const Intro: React.FC = () => {
                 
                 <div className="space-y-2">
                   <h2 className="text-2xl font-bold text-white">
-                    Welcome to the Future
+                    Welcome Back!
                   </h2>
                   <p className="text-slate-400 text-sm leading-relaxed">
-                    Enter your API key to unlock premium AI conversations
+                    You're authenticated and ready to experience AI conversations
                   </p>
                 </div>
               </div>
+
+              {/* User Info */}
+              {user && <UserInfo user={user} onSignOut={handleSignOut} />}
 
               {/* API Key Input Section */}
               <div className="space-y-4">
@@ -214,12 +286,13 @@ export const Intro: React.FC = () => {
                   <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
                     <Key className="size-4 text-cyan-400" />
                     Tavus API Key
+                    <span className="text-red-400">*</span>
                   </label>
                   
                   <PremiumInput
                     value={token || ""}
                     onChange={handleTokenChange}
-                    placeholder="Enter your API key"
+                    placeholder="Enter your API key (required)"
                     type={showPassword ? "text" : "password"}
                     icon={<Shield className="size-4" />}
                     showToggle={true}
@@ -255,7 +328,7 @@ export const Intro: React.FC = () => {
                   {/* Content */}
                   <span className="relative z-10 flex items-center justify-center gap-3">
                     <Unlock className="size-5" />
-                    {token ? "Unlock Experience" : "Enter API Key"}
+                    {token ? "Start AI Experience" : "Enter API Key Required"}
                     <Sparkles className="size-4 group-hover:animate-spin" />
                   </span>
                   
@@ -268,7 +341,7 @@ export const Intro: React.FC = () => {
               <div className="flex items-center justify-center gap-2 pt-2">
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                   <Shield className="size-3 text-emerald-400" />
-                  <span className="text-xs text-emerald-400 font-medium">Secure & Encrypted</span>
+                  <span className="text-xs text-emerald-400 font-medium">Authenticated & Secure</span>
                 </div>
               </div>
             </div>

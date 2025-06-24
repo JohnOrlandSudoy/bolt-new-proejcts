@@ -34,6 +34,7 @@ import { naughtyScoreAtom } from "@/store/game";
 import { apiTokenAtom } from "@/store/tokens";
 import { quantum } from 'ldrs';
 import { cn } from "@/lib/utils";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 quantum.register();
 
@@ -64,6 +65,12 @@ export const Conversation: React.FC = () => {
   const isMicEnabled = !localAudio.isOff;
   const remoteParticipantIds = useParticipantIds({ filter: "remote" });
   const [start, setStart] = useState(false);
+
+  // Enforce authentication for this screen
+  const { isAuthenticated, isLoading } = useAuthGuard({
+    showAuthModal: true,
+    redirectTo: "auth"
+  });
 
   useEffect(() => {
     if (remoteParticipantIds.length && !start) {
@@ -152,6 +159,23 @@ export const Conversation: React.FC = () => {
       setScreenState({ currentScreen: "finalScreen" });
     }
   }, [daily, token]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-white text-lg">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, this will be handled by useAuthGuard
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <DialogWrapper>

@@ -3,9 +3,16 @@ import React from "react";
 import { useAtom } from "jotai";
 import { screenAtom } from "@/store/screens";
 import { Button } from "@/components/ui/button";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 export const FinalScreen: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
+
+  // Enforce authentication for this screen
+  const { isAuthenticated, isLoading } = useAuthGuard({
+    showAuthModal: true,
+    redirectTo: "auth"
+  });
 
   const handleReturnToHome = () => {
     setScreenState({ currentScreen: "home" });
@@ -14,6 +21,23 @@ export const FinalScreen: React.FC = () => {
   const handleReturnToIntro = () => {
     setScreenState({ currentScreen: "intro" });
   };
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-white text-lg">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, this will be handled by useAuthGuard
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <DialogWrapper>

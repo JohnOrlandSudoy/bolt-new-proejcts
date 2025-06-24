@@ -10,6 +10,7 @@ import { screenAtom } from "@/store/screens";
 import { X, Save, User, Globe, Mic, MessageSquare, Bot, Key, Sparkles, Eye, EyeOff } from "lucide-react";
 import * as React from "react";
 import { apiTokenAtom } from "@/store/tokens";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 // Enhanced Button Component
 const Button = React.forwardRef<
@@ -263,6 +264,12 @@ export const Settings: React.FC = () => {
   const [, setSettingsSaved] = useAtom(settingsSavedAtom);
   const [showApiToken, setShowApiToken] = React.useState(false);
 
+  // Enforce authentication for this screen
+  const { isAuthenticated, isLoading } = useAuthGuard({
+    showAuthModal: true,
+    redirectTo: "auth"
+  });
+
   const languages = [
     { label: "English", value: "en" },
     { label: "Spanish", value: "es" },
@@ -308,6 +315,23 @@ export const Settings: React.FC = () => {
     setSettingsSaved(true);
     handleClose();
   };
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-white text-lg">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, this will be handled by useAuthGuard
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <DialogWrapper>

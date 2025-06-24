@@ -16,6 +16,7 @@ import { apiTokenAtom } from "@/store/tokens";
 import { quantum } from 'ldrs';
 import gloriaVideo from "@/assets/video/gloria.mp4";
 import { motion } from "framer-motion";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 // Register the quantum loader
 quantum.register();
@@ -154,6 +155,12 @@ export const Instructions: React.FC = () => {
   }, []);
   const [isPlayingSound, setIsPlayingSound] = useState(false);
 
+  // Enforce authentication for this screen
+  const { isAuthenticated, isLoading: authLoading } = useAuthGuard({
+    showAuthModal: true,
+    redirectTo: "auth"
+  });
+
   useDailyEvent(
     "camera-error",
     useCallback(() => {
@@ -162,6 +169,11 @@ export const Instructions: React.FC = () => {
   );
 
   const handleClick = async () => {
+    // Double-check authentication before proceeding
+    if (!isAuthenticated) {
+      return;
+    }
+
     try {
       setIsLoading(true);
       setIsPlayingSound(true);
@@ -210,6 +222,16 @@ export const Instructions: React.FC = () => {
       setIsLoadingConversation(false);
     }
   };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return <PremiumLoader message="Verifying access..." />;
+  }
+
+  // If not authenticated, this will be handled by useAuthGuard
+  if (!isAuthenticated) {
+    return null;
+  }
 
   if (isPlayingSound) {
     return <PremiumLoader message="Launching Experience..." />;
@@ -303,6 +325,17 @@ export const Instructions: React.FC = () => {
                 an intelligent agent ready to listen, respond, and engage across countless scenarios.
               </p>
             </div>
+          </motion.div>
+
+          {/* Authentication Status Badge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm"
+          >
+            <CheckCircle className="size-4 text-emerald-400" />
+            <span className="text-emerald-300 text-sm font-medium">Authenticated & Ready</span>
           </motion.div>
 
           {/* Premium CTA Section */}
@@ -430,7 +463,7 @@ export const Instructions: React.FC = () => {
           >
             <div className="text-center">
               <div className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                &lt;50ms
+                <50ms
               </div>
               <div className="text-xs text-gray-500 font-medium">Latency</div>
             </div>
