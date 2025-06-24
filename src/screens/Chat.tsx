@@ -12,11 +12,6 @@ import {
   Users,
   Plus,
   Settings,
-  Phone,
-  Video,
-  MoreVertical,
-  Paperclip,
-  Smile,
   X,
   UserPlus,
   MessageSquare,
@@ -51,8 +46,8 @@ import {
   ChevronRight,
   Minimize2,
   Maximize2,
-  Mic,
-  MicOff
+  Smile,
+  MoreVertical
 } from 'lucide-react';
 import { cn } from '@/utils';
 import { ChatMessage, ChatRoom, UserForCollaboration, UserConnection } from '@/services/chatService';
@@ -270,17 +265,19 @@ const ChatRoomItem = ({
   );
 };
 
-// Mobile-optimized Message Component
+// Mobile-optimized Message Component with real-time animations
 const MessageItem = ({ 
   message, 
   isOwn, 
   showSender = true,
-  isMobile = false
+  isMobile = false,
+  isNew = false
 }: { 
   message: ChatMessage; 
   isOwn: boolean; 
   showSender?: boolean;
   isMobile?: boolean;
+  isNew?: boolean;
 }) => {
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString([], { 
@@ -317,10 +314,17 @@ const MessageItem = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={isNew ? { opacity: 0, y: 20, scale: 0.95 } : { opacity: 1, y: 0, scale: 1 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ 
+        duration: isNew ? 0.4 : 0,
+        ease: "easeOut",
+        type: "spring",
+        stiffness: 300,
+        damping: 30
+      }}
       className={cn(
-        "flex mb-4",
+        "flex mb-4 animate-message-slide-in",
         isOwn ? "flex-row-reverse" : "flex-row",
         isMobile ? "gap-2 px-1" : "gap-3"
       )}
@@ -358,20 +362,25 @@ const MessageItem = ({
         )}
 
         {/* Message Bubble */}
-        <div className={cn(
-          "rounded-2xl break-words",
-          isMobile ? "px-4 py-3 text-base leading-relaxed" : "px-4 py-3 text-sm",
-          isOwn 
-            ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white" 
-            : "bg-white/10 text-white"
-        )}>
+        <motion.div 
+          initial={isNew ? { scale: 0.9 } : { scale: 1 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.2, delay: isNew ? 0.1 : 0 }}
+          className={cn(
+            "rounded-2xl break-words message-bubble",
+            isMobile ? "px-4 py-3 text-base leading-relaxed" : "px-4 py-3 text-sm",
+            isOwn 
+              ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white message-bubble-own" 
+              : "bg-white/10 text-white message-bubble-other"
+          )}
+        >
           <div className="flex items-start gap-2">
             {getMessageTypeIcon()}
-            <p className="break-words flex-1 whitespace-pre-wrap">
+            <p className="break-words flex-1 whitespace-pre-wrap chat-message">
               {message.content}
             </p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Message Time */}
         <div className={cn(
@@ -381,6 +390,9 @@ const MessageItem = ({
           <span>{formatTime(message.createdAt)}</span>
           {message.editedAt && (
             <span className="text-slate-600">(edited)</span>
+          )}
+          {isOwn && (
+            <CheckCircle className="size-3 text-cyan-400" />
           )}
         </div>
       </div>
@@ -405,13 +417,13 @@ const UserSearchItem = ({
   const getStatusColor = () => {
     switch (user.presenceStatus) {
       case 'online':
-        return 'bg-green-500';
+        return 'bg-green-500 connection-status-online';
       case 'away':
-        return 'bg-yellow-500';
+        return 'bg-yellow-500 connection-status-away';
       case 'busy':
-        return 'bg-red-500';
+        return 'bg-red-500 connection-status-busy';
       default:
-        return 'bg-slate-500';
+        return 'bg-slate-500 connection-status-offline';
     }
   };
 
@@ -474,7 +486,7 @@ const UserSearchItem = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation",
+        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation interactive-hover",
         isMobile ? "p-4 min-h-[80px]" : "p-4"
       )}
     >
@@ -583,7 +595,7 @@ const ConnectionItem = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation",
+        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation interactive-hover",
         isMobile ? "p-4 min-h-[80px]" : "p-4"
       )}
     >
@@ -645,7 +657,35 @@ const ConnectionItem = ({
   );
 };
 
-// Main Chat Component with responsive design
+// Enhanced Typing Indicator Component
+const TypingIndicator = ({ typingUsers, isMobile = false }: { typingUsers: string[]; isMobile?: boolean }) => {
+  if (typingUsers.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      className={cn("px-4 pb-2", isMobile && "px-3")}
+    >
+      <div className="flex items-center gap-3 text-sm text-slate-400">
+        <div className="flex gap-1">
+          <div className="w-2 h-2 bg-cyan-400 rounded-full typing-dot" />
+          <div className="w-2 h-2 bg-cyan-400 rounded-full typing-dot" />
+          <div className="w-2 h-2 bg-cyan-400 rounded-full typing-dot" />
+        </div>
+        <span>
+          {typingUsers.length === 1 
+            ? `${typingUsers[0]} is typing...`
+            : `${typingUsers.length} users are typing...`
+          }
+        </span>
+      </div>
+    </motion.div>
+  );
+};
+
+// Main Chat Component with enhanced real-time messaging
 export const Chat: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [activeTab, setActiveTab] = useState<'chats' | 'users' | 'connections'>('chats');
@@ -655,7 +695,7 @@ export const Chat: React.FC = () => {
   const [loadingConnections, setLoadingConnections] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [newMessageIds, setNewMessageIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
@@ -723,9 +763,36 @@ export const Chat: React.FC = () => {
     }
   };
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive with smooth animation
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'end'
+      });
+    }
+  }, [currentRoomMessages]);
+
+  // Track new messages for animation
+  useEffect(() => {
+    if (currentRoomMessages.length > 0) {
+      const latestMessage = currentRoomMessages[currentRoomMessages.length - 1];
+      const messageAge = Date.now() - new Date(latestMessage.createdAt).getTime();
+      
+      // Consider messages newer than 5 seconds as "new"
+      if (messageAge < 5000) {
+        setNewMessageIds(prev => new Set([...prev, latestMessage.id]));
+        
+        // Remove from new messages after animation
+        setTimeout(() => {
+          setNewMessageIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(latestMessage.id);
+            return newSet;
+          });
+        }, 1000);
+      }
+    }
   }, [currentRoomMessages]);
 
   // Load connections when tab changes
@@ -742,7 +809,7 @@ export const Chat: React.FC = () => {
     }
   }, [currentRoomId, isMobile]);
 
-  // Handle typing indicators
+  // Handle typing indicators with debouncing
   useEffect(() => {
     if (isTyping) {
       sendTyping(true);
@@ -764,7 +831,7 @@ export const Chat: React.FC = () => {
     };
   }, [isTyping, sendTyping]);
 
-  // Handle message input change
+  // Handle message input change with typing detection
   const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessageInput(e.target.value);
     
@@ -776,20 +843,26 @@ export const Chat: React.FC = () => {
     }
   };
 
-  // Handle send message
+  // Enhanced send message with optimistic updates
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!messageInput.trim() || !currentRoomId) return;
 
+    const messageContent = messageInput.trim();
+    
+    // Clear input immediately for better UX
+    setMessageInput('');
+    setIsTyping(false);
+    sendTyping(false);
+
     try {
-      await sendMessage(messageInput.trim());
-      setMessageInput('');
-      setIsTyping(false);
-      sendTyping(false);
+      await sendMessage(messageContent);
       messageInputRef.current?.focus();
     } catch (error) {
       console.error('Failed to send message:', error);
+      // Restore message on error
+      setMessageInput(messageContent);
       alert(error instanceof Error ? error.message : 'Failed to send message');
     }
   };
@@ -847,12 +920,6 @@ export const Chat: React.FC = () => {
     setScreenState({ currentScreen: "intro" });
   };
 
-  // Handle voice recording
-  const handleVoiceToggle = () => {
-    setIsVoiceRecording(!isVoiceRecording);
-    // Voice recording implementation would go here
-  };
-
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -871,7 +938,7 @@ export const Chat: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm chat-container">
       <div className="flex h-full max-w-7xl mx-auto relative">
         
         {/* Mobile Overlay */}
@@ -884,7 +951,7 @@ export const Chat: React.FC = () => {
         
         {/* Sidebar */}
         <div className={cn(
-          "bg-gradient-to-b from-slate-900/95 to-slate-800/95 backdrop-blur-xl border-r border-slate-700/50 flex flex-col transition-all duration-300 z-50",
+          "bg-gradient-to-b from-slate-900/95 to-slate-800/95 backdrop-blur-xl border-r border-slate-700/50 flex flex-col transition-all duration-300 z-50 chat-sidebar",
           isMobile 
             ? cn(
                 "absolute left-0 top-0 h-full",
@@ -894,7 +961,7 @@ export const Chat: React.FC = () => {
         )}>
           
           {/* Header */}
-          <div className="p-4 border-b border-slate-700/50 flex-shrink-0">
+          <div className="p-4 border-b border-slate-700/50 flex-shrink-0 chat-header">
             <div className="flex items-center justify-between mb-4">
               <h1 className={cn(
                 "font-bold text-white",
@@ -1112,7 +1179,7 @@ export const Chat: React.FC = () => {
           
           {/* Mobile Header Bar */}
           {isMobile && (
-            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/90 backdrop-blur-sm flex-shrink-0">
+            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/90 backdrop-blur-sm flex-shrink-0 chat-header">
               <Button
                 variant="ghost"
                 size="icon"
@@ -1151,7 +1218,7 @@ export const Chat: React.FC = () => {
             <>
               {/* Desktop Chat Header */}
               {!isMobile && (
-                <div className="p-4 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0">
+                <div className="p-4 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0 chat-header">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center">
                       <MessageCircle className="size-5 text-white" />
@@ -1176,12 +1243,6 @@ export const Chat: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon">
-                      <Phone className="size-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <Video className="size-5" />
-                    </Button>
                     <Button variant="ghost" size="icon">
                       <MoreVertical className="size-5" />
                     </Button>
@@ -1214,6 +1275,7 @@ export const Chat: React.FC = () => {
                     const isOwn = message.senderId === 'current-user'; // Replace with actual user ID
                     const showSender = index === 0 || 
                       currentRoomMessages[index - 1].senderId !== message.senderId;
+                    const isNew = newMessageIds.has(message.id);
                     
                     return (
                       <MessageItem
@@ -1222,6 +1284,7 @@ export const Chat: React.FC = () => {
                         isOwn={isOwn}
                         showSender={showSender}
                         isMobile={isMobile}
+                        isNew={isNew}
                       />
                     );
                   })
@@ -1230,29 +1293,18 @@ export const Chat: React.FC = () => {
               </div>
 
               {/* Typing Indicator */}
-              {typingUsers.length > 0 && (
-                <div className="px-4 pb-2">
-                  <div className="flex items-center gap-2 text-sm text-slate-400">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" />
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                    </div>
-                    <span>{typingUsers.length} user{typingUsers.length > 1 ? 's' : ''} typing...</span>
-                  </div>
-                </div>
-              )}
+              <AnimatePresence>
+                {typingUsers.length > 0 && (
+                  <TypingIndicator typingUsers={typingUsers} isMobile={isMobile} />
+                )}
+              </AnimatePresence>
 
-              {/* Message Input */}
+              {/* Enhanced Message Input */}
               <div className={cn(
-                "border-t border-slate-700/50 flex-shrink-0 safe-area-inset-bottom",
+                "border-t border-slate-700/50 flex-shrink-0 safe-area-inset-bottom message-input-container",
                 isMobile ? "p-3" : "p-4"
               )}>
                 <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-                  <Button variant="ghost" size="icon" type="button">
-                    <Paperclip className="size-5" />
-                  </Button>
-                  
                   <div className="flex-1 relative">
                     <Input
                       ref={messageInputRef}
@@ -1260,10 +1312,16 @@ export const Chat: React.FC = () => {
                       onChange={handleMessageInputChange}
                       placeholder="Type a message..."
                       className={cn(
-                        "pr-12 resize-none",
+                        "pr-12 resize-none message-input",
                         isMobile && "min-h-[48px]" // Larger on mobile
                       )}
                       fullWidth
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
                     />
                     <Button
                       variant="ghost"
@@ -1275,26 +1333,16 @@ export const Chat: React.FC = () => {
                     </Button>
                   </div>
                   
-                  {/* Voice/Send Button */}
-                  {messageInput.trim() ? (
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="icon"
-                      disabled={!messageInput.trim()}
-                    >
-                      <Send className="size-5" />
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant={isVoiceRecording ? "danger" : "secondary"}
-                      size="icon"
-                      onClick={handleVoiceToggle}
-                    >
-                      {isVoiceRecording ? <MicOff className="size-5" /> : <Mic className="size-5" />}
-                    </Button>
-                  )}
+                  {/* Send Button */}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="icon"
+                    disabled={!messageInput.trim()}
+                    className="flex-shrink-0"
+                  >
+                    <Send className="size-5" />
+                  </Button>
                 </form>
               </div>
             </>
