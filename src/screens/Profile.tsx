@@ -1,18 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAtom } from "jotai";
 import { getDefaultStore } from "jotai";
-import { 
-  userProfileAtom, 
-  profileSavedAtom, 
-  UserProfile, 
-  loadProfileAtom, 
-  saveProfileAtom,
-  profileLoadingAtom,
-  updateProfileAtom,
-  dbConnectionStatusAtom,
-  testDbConnectionAtom
-} from "@/store/profile";
+import { userProfileAtom, profileSavedAtom, UserProfile } from "@/store/profile";
 import { screenAtom } from "@/store/screens";
 import { useAuthContext } from "@/components/AuthProvider";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
@@ -32,14 +22,7 @@ import {
   Sparkles,
   Edit3,
   Plus,
-  Trash2,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  Database,
-  Wifi,
-  WifiOff,
-  RefreshCw
+  Trash2
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -254,16 +237,9 @@ const PhotoUpload = ({
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Check file size (limit to 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
-        return;
-      }
-
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        console.log('📸 Image uploaded for database save, size:', result.length);
         onPhotoChange(result);
       };
       reader.readAsDataURL(file);
@@ -271,7 +247,6 @@ const PhotoUpload = ({
   };
 
   const handleRemovePhoto = () => {
-    console.log('🗑️ Removing photo for database save');
     onPhotoChange("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -324,7 +299,7 @@ const PhotoUpload = ({
             </div>
             <div className="text-center">
               <p className="text-white font-medium text-sm">Upload {label}</p>
-              <p className="text-slate-400 text-xs">Click to browse files (max 5MB)</p>
+              <p className="text-slate-400 text-xs">Click to browse files</p>
             </div>
           </div>
         )}
@@ -353,17 +328,13 @@ const InterestTags = ({
 
   const addInterest = () => {
     if (newInterest.trim() && !interests.includes(newInterest.trim())) {
-      const updatedInterests = [...interests, newInterest.trim()];
-      console.log('➕ Adding interest for database save:', newInterest.trim());
-      onInterestsChange(updatedInterests);
+      onInterestsChange([...interests, newInterest.trim()]);
       setNewInterest("");
     }
   };
 
   const removeInterest = (interest: string) => {
-    const updatedInterests = interests.filter(i => i !== interest);
-    console.log('➖ Removing interest for database save:', interest);
-    onInterestsChange(updatedInterests);
+    onInterestsChange(interests.filter(i => i !== interest));
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -472,125 +443,18 @@ const FormField = ({
   );
 };
 
-// Status Message Component
-const StatusMessage = ({ 
-  type, 
-  message 
-}: { 
-  type: "success" | "error" | "info" | "warning"; 
-  message: string; 
-}) => {
-  const icons = {
-    success: CheckCircle,
-    error: AlertCircle,
-    info: Loader2,
-    warning: AlertCircle
-  };
-  
-  const colors = {
-    success: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
-    error: "text-red-400 border-red-500/30 bg-red-500/10",
-    info: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10",
-    warning: "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"
-  };
-  
-  const Icon = icons[type];
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={cn(
-        "flex items-center gap-3 p-4 rounded-xl border backdrop-blur-sm",
-        colors[type]
-      )}
-    >
-      <Icon className={cn("size-5 flex-shrink-0", type === "info" && "animate-spin")} />
-      <p className="text-sm font-medium">{message}</p>
-    </motion.div>
-  );
-};
-
-// Database Status Component
-const DatabaseStatus = () => {
-  const [dbStatus] = useAtom(dbConnectionStatusAtom);
-  const [, testConnection] = useAtom(testDbConnectionAtom);
-
-  const handleRefreshConnection = async () => {
-    console.log('🔄 Manually refreshing database connection...');
-    await testConnection();
-  };
-
-  return (
-    <div className="flex items-center justify-between gap-4 text-xs">
-      <div className="flex items-center gap-2">
-        {dbStatus === 'checking' ? (
-          <Loader2 className="size-3 animate-spin text-yellow-400" />
-        ) : dbStatus === 'connected' ? (
-          <Database className="size-3 text-emerald-400" />
-        ) : (
-          <Database className="size-3 text-red-400" />
-        )}
-        <span className={cn(
-          "font-medium",
-          dbStatus === 'connected' ? "text-emerald-400" : 
-          dbStatus === 'disconnected' ? "text-red-400" : "text-yellow-400"
-        )}>
-          DB: {dbStatus === 'checking' ? 'Checking...' : 
-               dbStatus === 'connected' ? 'Connected' : 'Disconnected'}
-        </span>
-      </div>
-      
-      {dbStatus === 'disconnected' && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleRefreshConnection}
-          className="h-6 px-2 text-xs"
-        >
-          <RefreshCw className="size-3 mr-1" />
-          Retry
-        </Button>
-      )}
-    </div>
-  );
-};
-
 export const Profile: React.FC = () => {
   const [profile, setProfile] = useAtom(userProfileAtom);
   const [, setScreenState] = useAtom(screenAtom);
   const [, setProfileSaved] = useAtom(profileSavedAtom);
-  const [profileLoading] = useAtom(profileLoadingAtom);
-  const [dbStatus] = useAtom(dbConnectionStatusAtom);
   const { user } = useAuthContext();
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<{
-    type: "success" | "error" | "info" | "warning" | null;
-    message: string;
-  }>({ type: null, message: "" });
 
   // Enforce authentication for this screen
   const { isAuthenticated, isLoading } = useAuthGuard({
     showAuthModal: true,
     redirectTo: "auth"
   });
-
-  // Load profile data when component mounts and test DB connection
-  useEffect(() => {
-    if (user?.id && isAuthenticated) {
-      console.log('🚀 Profile component mounted - loading from Supabase database only');
-      console.log('👤 User ID:', user.id);
-      
-      const store = getDefaultStore();
-      
-      // Test database connection first
-      store.set(testDbConnectionAtom);
-      
-      // Load profile from database
-      store.set(loadProfileAtom, user.id);
-    }
-  }, [user?.id, isAuthenticated]);
 
   const relationshipOptions = [
     { label: "Prefer not to say", value: "prefer-not-to-say" },
@@ -625,87 +489,29 @@ export const Profile: React.FC = () => {
   };
 
   const handleSave = async () => {
-    console.log('💾 Save to Supabase database button clicked');
-    
-    if (dbStatus !== 'connected') {
-      setSaveStatus({ 
-        type: "error", 
-        message: "❌ Database not connected. Please check your connection and try again." 
-      });
-      return;
-    }
-    
-    if (!validateForm()) {
-      console.log('❌ Form validation failed');
-      setSaveStatus({ 
-        type: "error", 
-        message: "Please fix the errors above before saving." 
-      });
-      return;
-    }
+    if (!validateForm()) return;
 
-    setIsSaving(true);
-    setSaveStatus({ type: "info", message: "💾 Saving your profile to Supabase database..." });
+    console.log('Saving profile:', profile);
     
-    try {
-      console.log('🔄 Starting Supabase database save process...');
-      console.log('📝 Current profile data:', profile);
-      console.log('👤 User ID:', user?.id);
-      console.log('📧 User email:', user?.email);
-      
-      if (!user?.id) {
-        throw new Error('User ID is required for saving to database');
-      }
-      
-      console.log('💾 Attempting to save to Supabase database...');
-      
-      // Save to Supabase using the store action
-      const store = getDefaultStore();
-      await store.set(saveProfileAtom, user.id);
-      
-      console.log('✅ Profile saved successfully to Supabase database!');
-      
-      setSaveStatus({ 
-        type: "success", 
-        message: "✅ Profile saved successfully to Supabase database! Data will persist on reload." 
-      });
-      
-      // Close after a brief delay to show success message
-      setTimeout(() => {
-        handleClose();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('❌ CRITICAL ERROR: Failed to save profile to Supabase database:', error);
-      
-      // Provide detailed error information
-      let errorMessage = "Failed to save to Supabase database. ";
-      
-      if (error instanceof Error) {
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack
-        });
-        errorMessage += error.message;
-      } else {
-        errorMessage += "Unknown error occurred.";
-      }
-      
-      setSaveStatus({ 
-        type: "error", 
-        message: `❌ Database save failed: ${errorMessage}` 
-      });
-      
-    } finally {
-      setIsSaving(false);
-    }
+    const updatedProfile = {
+      ...profile,
+      email: user?.email || profile.email,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
+    
+    const store = getDefaultStore();
+    store.set(userProfileAtom, updatedProfile);
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    setProfileSaved(true);
+    handleClose();
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
-    console.log('🔄 Updating profile in memory (will save to database on Save button):', updates);
-    const store = getDefaultStore();
-    store.set(updateProfileAtom, updates);
-    
+    setProfile(prev => ({ ...prev, ...updates }));
     // Clear related errors
     Object.keys(updates).forEach(key => {
       if (errors[key]) {
@@ -714,16 +520,13 @@ export const Profile: React.FC = () => {
     });
   };
 
-  // Show loading while checking authentication or loading profile
-  if (isLoading || profileLoading) {
+  // Show loading while checking authentication
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-white text-lg">
-            {isLoading ? "Verifying access..." : "Loading profile from Supabase database..."}
-          </p>
-          <DatabaseStatus />
+          <p className="text-white text-lg">Verifying access...</p>
         </div>
       </div>
     );
@@ -747,8 +550,7 @@ export const Profile: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white mb-1">Create Your Profile</h1>
-                <p className="text-sm text-slate-300">Save your data to Supabase database - NO localStorage</p>
-                <DatabaseStatus />
+                <p className="text-sm text-slate-300">Tell us about yourself to personalize your AI experience</p>
               </div>
             </div>
             <Button
@@ -756,19 +558,11 @@ export const Profile: React.FC = () => {
               size="icon"
               onClick={handleClose}
               className="hover:bg-red-500/20 hover:text-red-400 border-2 border-transparent hover:border-red-500/30"
-              disabled={isSaving}
             >
               <X className="size-6" />
             </Button>
           </div>
         </div>
-        
-        {/* Status Message */}
-        {saveStatus.type && (
-          <div className="flex-shrink-0 p-4 border-b border-slate-600/30">
-            <StatusMessage type={saveStatus.type} message={saveStatus.message} />
-          </div>
-        )}
         
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -776,7 +570,7 @@ export const Profile: React.FC = () => {
           {/* Photos Section */}
           <ProfileSection
             title="Photos"
-            description="Add photos to personalize your profile (saved to Supabase database)"
+            description="Add photos to personalize your profile"
             icon={<Camera />}
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -800,7 +594,7 @@ export const Profile: React.FC = () => {
           {/* Basic Information */}
           <ProfileSection
             title="Basic Information"
-            description="Essential details about yourself (saved to Supabase database)"
+            description="Essential details about yourself"
             icon={<User />}
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -869,7 +663,7 @@ export const Profile: React.FC = () => {
           {/* Professional & Lifestyle */}
           <ProfileSection
             title="Professional & Lifestyle"
-            description="Your work and style preferences (saved to Supabase database)"
+            description="Your work and style preferences"
             icon={<Briefcase />}
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -934,7 +728,7 @@ export const Profile: React.FC = () => {
           {/* Interests & Contact */}
           <ProfileSection
             title="Interests & Contact"
-            description="Your hobbies and how to reach you (saved to Supabase database)"
+            description="Your hobbies and how to reach you"
             icon={<Sparkles />}
           >
             <div className="space-y-4">
@@ -967,13 +761,12 @@ export const Profile: React.FC = () => {
             <div className="text-xs text-slate-300 leading-relaxed space-y-1">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-                <span className="font-bold text-white text-sm">Supabase Database Save</span>
+                <span className="font-bold text-white text-sm">Profile Tips</span>
               </div>
               <div className="space-y-1 text-slate-400">
-                <p>• All data is saved ONLY to your Supabase database</p>
-                <p>• NO localStorage - data persists across devices and browsers</p>
-                <p>• Changes are saved when you click "Save to Database"</p>
-                <p>• Database connection required for saving</p>
+                <p>• All fields are optional except your name</p>
+                <p>• Your profile helps personalize AI conversations</p>
+                <p>• Data is stored locally and securely</p>
               </div>
             </div>
             <div className="flex gap-3 w-full lg:w-auto">
@@ -981,7 +774,6 @@ export const Profile: React.FC = () => {
                 variant="outline"
                 onClick={handleClose}
                 className="flex-1 lg:flex-none min-w-[100px]"
-                disabled={isSaving}
               >
                 Skip for Now
               </Button>
@@ -989,19 +781,9 @@ export const Profile: React.FC = () => {
                 variant="primary"
                 onClick={handleSave}
                 className="flex-1 lg:flex-none min-w-[140px]"
-                disabled={isSaving || dbStatus !== 'connected'}
               >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="size-4 mr-2 animate-spin" />
-                    Saving to DB...
-                  </>
-                ) : (
-                  <>
-                    <Save className="size-4 mr-2" />
-                    Save to Database
-                  </>
-                )}
+                <Save className="size-4 mr-2" />
+                Save Profile
               </Button>
             </div>
           </div>
