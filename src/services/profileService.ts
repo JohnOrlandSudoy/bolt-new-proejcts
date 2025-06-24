@@ -27,12 +27,26 @@ export interface ProfileWithInterests {
 }
 
 class ProfileService {
-  // Upload photo to Supabase Storage
+  // Upload photo to Supabase Storage with proper folder structure
   async uploadPhoto(file: File, bucket: 'profile-photos' | 'cover-photos', userId: string): Promise<string> {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}-${Date.now()}.${fileExt}`;
-      const filePath = `${bucket}/${fileName}`;
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error('Invalid file type. Please upload a JPEG, PNG, WebP, or GIF image.');
+      }
+
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        throw new Error('File size too large. Please upload an image smaller than 5MB.');
+      }
+
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${bucket}/${userId}/${fileName}`;
+
+      console.log('Uploading file to path:', filePath);
 
       const { data, error } = await supabase.storage
         .from('user-uploads')
@@ -46,11 +60,14 @@ class ProfileService {
         throw new Error(`Failed to upload photo: ${error.message}`);
       }
 
+      console.log('Upload successful:', data);
+
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('user-uploads')
         .getPublicUrl(filePath);
 
+      console.log('Public URL:', publicUrl);
       return publicUrl;
     } catch (error) {
       console.error('Photo upload failed:', error);
@@ -61,12 +78,30 @@ class ProfileService {
   // Convert base64 to file and upload
   async uploadBase64Photo(base64Data: string, bucket: 'profile-photos' | 'cover-photos', userId: string): Promise<string> {
     try {
+      console.log('Converting base64 to file for upload...');
+      
+      // Extract the actual base64 data (remove data:image/...;base64, prefix)
+      const base64Parts = base64Data.split(',');
+      if (base64Parts.length !== 2) {
+        throw new Error('Invalid base64 data format');
+      }
+
+      const mimeType = base64Parts[0].match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+      const base64String = base64Parts[1];
+      
       // Convert base64 to blob
-      const response = await fetch(base64Data);
-      const blob = await response.blob();
+      const byteCharacters = atob(base64String);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mimeType });
       
       // Create file from blob
-      const file = new File([blob], `photo.jpg`, { type: 'image/jpeg' });
+      const file = new File([blob], `photo.${mimeType.split('/')[1]}`, { type: mimeType });
+      
+      console.log('File created:', { name: file.name, size: file.size, type: file.type });
       
       return await this.uploadPhoto(file, bucket, userId);
     } catch (error) {
@@ -78,6 +113,8 @@ class ProfileService {
   // Get user profile with interests
   async getUserProfile(userId: string): Promise<ProfileWithInterests | null> {
     try {
+      console.log('Getting profile for user:', userId);
+      
       const { data, error } = await supabase
         .rpc('get_user_profile_with_interests', { profile_user_id: userId });
 
@@ -86,6 +123,7 @@ class ProfileService {
         throw new Error(`Failed to get profile: ${error.message}`);
       }
 
+      console.log('Profile data received:', data);
       return data;
     } catch (error) {
       console.error('Get profile failed:', error);
@@ -96,24 +134,30 @@ class ProfileService {
   // Create or update user profile
   async upsertUserProfile(userId: string, profileData: Partial<UserProfile>): Promise<string> {
     try {
+      console.log('Upserting profile for user:', userId, profileData);
+      
       let profilePhotoUrl = profileData.profilePhoto;
       let coverPhotoUrl = profileData.coverPhoto;
 
       // Handle photo uploads if they are base64 data
       if (profileData.profilePhoto && profileData.profilePhoto.startsWith('data:')) {
+        console.log('Uploading profile photo...');
         profilePhotoUrl = await this.uploadBase64Photo(
           profileData.profilePhoto, 
           'profile-photos', 
           userId
         );
+        console.log('Profile photo uploaded:', profilePhotoUrl);
       }
 
       if (profileData.coverPhoto && profileData.coverPhoto.startsWith('data:')) {
+        console.log('Uploading cover photo...');
         coverPhotoUrl = await this.uploadBase64Photo(
           profileData.coverPhoto, 
           'cover-photos', 
           userId
         );
+        console.log('Cover photo uploaded:', coverPhotoUrl);
       }
 
       // Convert birthday to date format
@@ -145,6 +189,7 @@ class ProfileService {
         throw new Error(`Failed to save profile: ${error.message}`);
       }
 
+      console.log('Profile upserted successfully:', data);
       return data;
     } catch (error) {
       console.error('Upsert profile failed:', error);
@@ -155,6 +200,8 @@ class ProfileService {
   // Update user interests
   async updateUserInterests(userId: string, interests: string[]): Promise<void> {
     try {
+      console.log('Updating interests for user:', userId, interests);
+      
       const { error } = await supabase
         .rpc('upsert_user_interests', {
           profile_user_id: userId,
@@ -165,6 +212,8 @@ class ProfileService {
         console.error('Update interests error:', error);
         throw new Error(`Failed to update interests: ${error.message}`);
       }
+
+      console.log('Interests updated successfully');
     } catch (error) {
       console.error('Update interests failed:', error);
       throw error;
@@ -174,13 +223,20 @@ class ProfileService {
   // Save complete profile (profile + interests)
   async saveCompleteProfile(userId: string, profileData: UserProfile): Promise<void> {
     try {
+      console.log('Saving complete profile for user:', userId);
+      
       // Save profile data
       await this.upsertUserProfile(userId, profileData);
 
       // Save interests
       if (profileData.interests && profileData.interests.length > 0) {
         await this.updateUserInterests(userId, profileData.interests);
+      } else {
+        // Clear interests if none provided
+        await this.updateUserInterests(userId, []);
       }
+
+      console.log('Complete profile saved successfully');
     } catch (error) {
       console.error('Save complete profile failed:', error);
       throw error;
@@ -210,9 +266,37 @@ class ProfileService {
     };
   }
 
-  // Delete user profile
+  // Delete user profile and associated photos
   async deleteUserProfile(userId: string): Promise<void> {
     try {
+      console.log('Deleting profile for user:', userId);
+      
+      // Delete photos from storage first
+      try {
+        const { data: profilePhotos } = await supabase.storage
+          .from('user-uploads')
+          .list(`profile-photos/${userId}`);
+        
+        const { data: coverPhotos } = await supabase.storage
+          .from('user-uploads')
+          .list(`cover-photos/${userId}`);
+
+        // Delete profile photos
+        if (profilePhotos && profilePhotos.length > 0) {
+          const profilePaths = profilePhotos.map(photo => `profile-photos/${userId}/${photo.name}`);
+          await supabase.storage.from('user-uploads').remove(profilePaths);
+        }
+
+        // Delete cover photos
+        if (coverPhotos && coverPhotos.length > 0) {
+          const coverPaths = coverPhotos.map(photo => `cover-photos/${userId}/${photo.name}`);
+          await supabase.storage.from('user-uploads').remove(coverPaths);
+        }
+      } catch (storageError) {
+        console.warn('Error deleting photos from storage:', storageError);
+        // Continue with profile deletion even if photo deletion fails
+      }
+
       // Delete interests first (due to foreign key)
       const { error: interestsError } = await supabase
         .from('user_interests')
@@ -234,6 +318,8 @@ class ProfileService {
         console.error('Delete profile error:', profileError);
         throw new Error(`Failed to delete profile: ${profileError.message}`);
       }
+
+      console.log('Profile deleted successfully');
     } catch (error) {
       console.error('Delete profile failed:', error);
       throw error;
@@ -258,6 +344,38 @@ class ProfileService {
     } catch (error) {
       console.error('Check profile failed:', error);
       return false;
+    }
+  }
+
+  // Delete a specific photo
+  async deletePhoto(photoUrl: string, userId: string): Promise<void> {
+    try {
+      // Extract the file path from the URL
+      const urlParts = photoUrl.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+      const folder = urlParts[urlParts.length - 2];
+      const userIdFromUrl = urlParts[urlParts.length - 3];
+      
+      // Verify the user owns this photo
+      if (userIdFromUrl !== userId) {
+        throw new Error('Unauthorized: Cannot delete photo that does not belong to you');
+      }
+
+      const filePath = `${folder}/${userId}/${fileName}`;
+      
+      const { error } = await supabase.storage
+        .from('user-uploads')
+        .remove([filePath]);
+
+      if (error) {
+        console.error('Delete photo error:', error);
+        throw new Error(`Failed to delete photo: ${error.message}`);
+      }
+
+      console.log('Photo deleted successfully:', filePath);
+    } catch (error) {
+      console.error('Delete photo failed:', error);
+      throw error;
     }
   }
 }
