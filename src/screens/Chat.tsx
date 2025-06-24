@@ -45,22 +45,28 @@ import {
   UserCheck,
   UserX,
   AlertCircle,
-  Check
+  Check,
+  Menu,
+  ChevronLeft,
+  ChevronRight,
+  Minimize2,
+  Maximize2
 } from 'lucide-react';
 import { cn } from '@/utils';
 import { ChatMessage, ChatRoom, UserForCollaboration, UserConnection } from '@/services/chatService';
 import { chatService } from '@/services/chatService';
 
-// Enhanced Button Component
+// Enhanced Button Component with better mobile touch targets
 const Button = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
     variant?: "ghost" | "outline" | "primary" | "secondary" | "danger" | "success";
-    size?: "icon" | "sm" | "default" | "lg";
+    size?: "icon" | "sm" | "default" | "lg" | "xs";
     loading?: boolean;
+    fullWidth?: boolean;
   }
->(({ className, variant = "default", size = "default", loading = false, children, disabled, ...props }, ref) => {
-  const baseStyles = "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:pointer-events-none";
+>(({ className, variant = "default", size = "default", loading = false, fullWidth = false, children, disabled, ...props }, ref) => {
+  const baseStyles = "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:pointer-events-none active:scale-95";
   
   const variants = {
     ghost: "hover:bg-white/10 text-white/80 hover:text-white",
@@ -73,15 +79,22 @@ const Button = React.forwardRef<
   };
   
   const sizes = {
-    icon: "h-10 w-10 p-0",
-    sm: "h-8 px-3 text-sm",
-    default: "h-10 px-4 text-sm",
-    lg: "h-12 px-6 text-base"
+    xs: "h-8 px-2 text-xs min-w-[32px]",
+    icon: "h-10 w-10 p-0 min-w-[40px]",
+    sm: "h-9 px-3 text-sm min-w-[36px]",
+    default: "h-10 px-4 text-sm min-w-[40px]",
+    lg: "h-12 px-6 text-base min-w-[48px]"
   };
 
   return (
     <button
-      className={cn(baseStyles, variants[variant], sizes[size], className)}
+      className={cn(
+        baseStyles, 
+        variants[variant], 
+        sizes[size], 
+        fullWidth && "w-full",
+        className
+      )}
       disabled={disabled || loading}
       ref={ref}
       {...props}
@@ -95,16 +108,17 @@ const Button = React.forwardRef<
 });
 Button.displayName = "Button";
 
-// Enhanced Input Component
+// Enhanced Input Component with better mobile experience
 const Input = React.forwardRef<
   HTMLInputElement,
   React.InputHTMLAttributes<HTMLInputElement> & {
     icon?: React.ReactNode;
     error?: string;
+    fullWidth?: boolean;
   }
->(({ className, icon, error, type, ...props }, ref) => {
+>(({ className, icon, error, fullWidth = false, type, ...props }, ref) => {
   return (
-    <div className="relative group">
+    <div className={cn("relative group", fullWidth && "w-full")}>
       {icon && (
         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 z-10">
           {icon}
@@ -114,9 +128,10 @@ const Input = React.forwardRef<
       <input
         type={type}
         className={cn(
-          "flex h-10 w-full rounded-xl border-2 border-slate-500 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:border-cyan-400 transition-all duration-200 shadow-lg",
+          "flex h-11 w-full rounded-xl border-2 border-slate-500 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:border-cyan-400 transition-all duration-200 shadow-lg",
           icon && "pl-10",
           "hover:border-cyan-500/70 hover:bg-slate-800",
+          "touch-manipulation", // Better mobile touch handling
           error && "border-red-500/50 focus-visible:border-red-500 focus-visible:ring-red-500/50",
           className
         )}
@@ -141,15 +156,17 @@ const Input = React.forwardRef<
 });
 Input.displayName = "Input";
 
-// Chat Room Item Component
+// Mobile-optimized Chat Room Item Component
 const ChatRoomItem = ({ 
   room, 
   isActive, 
-  onClick 
+  onClick,
+  isMobile = false
 }: { 
   room: ChatRoom; 
   isActive: boolean; 
-  onClick: () => void; 
+  onClick: () => void;
+  isMobile?: boolean;
 }) => {
   const getTypeIcon = () => {
     switch (room.type) {
@@ -178,19 +195,21 @@ const ChatRoomItem = ({
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02 }}
+      whileHover={{ scale: isMobile ? 1 : 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200",
+        "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 touch-manipulation",
         isActive 
           ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30" 
-          : "hover:bg-white/10 border border-transparent"
+          : "hover:bg-white/10 border border-transparent",
+        isMobile && "min-h-[60px]" // Better touch targets on mobile
       )}
     >
       {/* Room Icon */}
       <div className={cn(
-        "flex items-center justify-center w-12 h-12 rounded-xl",
+        "flex items-center justify-center rounded-xl flex-shrink-0",
+        isMobile ? "w-12 h-12" : "w-10 h-10",
         isActive ? "bg-cyan-500/30" : "bg-white/10"
       )}>
         {getTypeIcon()}
@@ -199,18 +218,27 @@ const ChatRoomItem = ({
       {/* Room Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-white truncate">
+          <h3 className={cn(
+            "font-semibold text-white truncate",
+            isMobile ? "text-base" : "text-sm"
+          )}>
             {room.name || 'Direct Message'}
           </h3>
           {room.latestMessage && (
-            <span className="text-xs text-slate-400">
+            <span className={cn(
+              "text-slate-400 flex-shrink-0 ml-2",
+              isMobile ? "text-xs" : "text-xs"
+            )}>
               {formatTime(room.latestMessage.createdAt)}
             </span>
           )}
         </div>
         
         {room.latestMessage && (
-          <p className="text-sm text-slate-400 truncate">
+          <p className={cn(
+            "text-slate-400 truncate",
+            isMobile ? "text-sm" : "text-xs"
+          )}>
             {room.latestMessage.senderName}: {room.latestMessage.content}
           </p>
         )}
@@ -225,7 +253,10 @@ const ChatRoomItem = ({
           </div>
           
           {room.unreadCount > 0 && (
-            <div className="bg-cyan-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+            <div className={cn(
+              "bg-cyan-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center font-medium",
+              isMobile && "min-w-[24px] h-6"
+            )}>
               {room.unreadCount > 99 ? '99+' : room.unreadCount}
             </div>
           )}
@@ -235,15 +266,17 @@ const ChatRoomItem = ({
   );
 };
 
-// Message Component
+// Mobile-optimized Message Component
 const MessageItem = ({ 
   message, 
   isOwn, 
-  showSender = true 
+  showSender = true,
+  isMobile = false
 }: { 
   message: ChatMessage; 
   isOwn: boolean; 
-  showSender?: boolean; 
+  showSender?: boolean;
+  isMobile?: boolean;
 }) => {
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString([], { 
@@ -270,9 +303,9 @@ const MessageItem = ({
   if (message.messageType === 'system') {
     return (
       <div className="flex justify-center my-4">
-        <div className="bg-white/10 text-slate-300 text-sm px-4 py-2 rounded-full flex items-center gap-2">
-          <Settings className="size-3" />
-          {message.content}
+        <div className="bg-white/10 text-slate-300 text-sm px-4 py-2 rounded-full flex items-center gap-2 max-w-[80%] text-center">
+          <Settings className="size-3 flex-shrink-0" />
+          <span className="break-words">{message.content}</span>
         </div>
       </div>
     );
@@ -284,31 +317,36 @@ const MessageItem = ({
       animate={{ opacity: 1, y: 0 }}
       className={cn(
         "flex gap-3 mb-4",
-        isOwn ? "flex-row-reverse" : "flex-row"
+        isOwn ? "flex-row-reverse" : "flex-row",
+        isMobile && "px-2"
       )}
     >
       {/* Avatar */}
       {showSender && !isOwn && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold">
+        <div className={cn(
+          "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0",
+          isMobile ? "w-10 h-10" : "w-8 h-8"
+        )}>
           {message.senderName.charAt(0).toUpperCase()}
         </div>
       )}
 
       {/* Message Content */}
       <div className={cn(
-        "max-w-[70%] space-y-1",
+        "space-y-1 max-w-[85%]",
+        isMobile && "max-w-[80%]",
         isOwn ? "items-end" : "items-start"
       )}>
         {/* Sender Name */}
         {showSender && !isOwn && (
-          <div className="text-xs text-slate-400 font-medium">
+          <div className="text-xs text-slate-400 font-medium px-1">
             {message.senderName}
           </div>
         )}
 
         {/* Reply Context */}
         {message.replyTo && message.replyContent && (
-          <div className="bg-white/5 border-l-2 border-cyan-500 pl-3 py-2 rounded-r-lg">
+          <div className="bg-white/5 border-l-2 border-cyan-500 pl-3 py-2 rounded-r-lg max-w-full">
             <p className="text-xs text-slate-400 truncate">
               {message.replyContent}
             </p>
@@ -317,14 +355,15 @@ const MessageItem = ({
 
         {/* Message Bubble */}
         <div className={cn(
-          "px-4 py-2 rounded-2xl",
+          "px-4 py-3 rounded-2xl break-words",
+          isMobile ? "text-base" : "text-sm",
           isOwn 
             ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white" 
             : "bg-white/10 text-white"
         )}>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-start gap-2">
             {getMessageTypeIcon()}
-            <p className="text-sm leading-relaxed break-words">
+            <p className="leading-relaxed break-words flex-1">
               {message.content}
             </p>
           </div>
@@ -332,7 +371,7 @@ const MessageItem = ({
 
         {/* Message Time */}
         <div className={cn(
-          "text-xs text-slate-500 flex items-center gap-1",
+          "text-xs text-slate-500 flex items-center gap-1 px-1",
           isOwn ? "justify-end" : "justify-start"
         )}>
           <span>{formatTime(message.createdAt)}</span>
@@ -345,17 +384,19 @@ const MessageItem = ({
   );
 };
 
-// User Search Item Component with Connection Management
+// Mobile-optimized User Search Item Component
 const UserSearchItem = ({ 
   user, 
   onConnect, 
   onMessage,
-  onConnectionResponse
+  onConnectionResponse,
+  isMobile = false
 }: { 
   user: UserForCollaboration; 
   onConnect: () => void; 
   onMessage: () => void;
   onConnectionResponse?: (response: 'accepted' | 'declined') => void;
+  isMobile?: boolean;
 }) => {
   const getStatusColor = () => {
     switch (user.presenceStatus) {
@@ -374,9 +415,9 @@ const UserSearchItem = ({
     switch (user.connectionStatus) {
       case 'none':
         return (
-          <Button size="sm" variant="primary" onClick={onConnect}>
+          <Button size={isMobile ? "sm" : "xs"} variant="primary" onClick={onConnect}>
             <UserPlus className="size-4 mr-1" />
-            Connect
+            {!isMobile && "Connect"}
           </Button>
         );
       case 'pending':
@@ -384,39 +425,39 @@ const UserSearchItem = ({
           <div className="flex gap-1">
             {onConnectionResponse && (
               <>
-                <Button size="sm" variant="success" onClick={() => onConnectionResponse('accepted')}>
+                <Button size="xs" variant="success" onClick={() => onConnectionResponse('accepted')}>
                   <Check className="size-4" />
                 </Button>
-                <Button size="sm" variant="danger" onClick={() => onConnectionResponse('declined')}>
+                <Button size="xs" variant="danger" onClick={() => onConnectionResponse('declined')}>
                   <X className="size-4" />
                 </Button>
               </>
             )}
-            <Button size="sm" variant="secondary" disabled>
+            <Button size={isMobile ? "sm" : "xs"} variant="secondary" disabled>
               <Clock className="size-4 mr-1" />
-              Pending
+              {!isMobile && "Pending"}
             </Button>
           </div>
         );
       case 'accepted':
         return (
-          <Button size="sm" variant="success" disabled>
+          <Button size={isMobile ? "sm" : "xs"} variant="success" disabled>
             <UserCheck className="size-4 mr-1" />
-            Connected
+            {!isMobile && "Connected"}
           </Button>
         );
       case 'declined':
         return (
-          <Button size="sm" variant="outline" onClick={onConnect}>
+          <Button size={isMobile ? "sm" : "xs"} variant="outline" onClick={onConnect}>
             <UserPlus className="size-4 mr-1" />
-            Retry
+            {!isMobile && "Retry"}
           </Button>
         );
       case 'blocked':
         return (
-          <Button size="sm" variant="danger" disabled>
+          <Button size={isMobile ? "sm" : "xs"} variant="danger" disabled>
             <UserX className="size-4 mr-1" />
-            Blocked
+            {!isMobile && "Blocked"}
           </Button>
         );
       default:
@@ -428,51 +469,77 @@ const UserSearchItem = ({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200"
+      className={cn(
+        "flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation",
+        isMobile && "min-h-[80px]"
+      )}
     >
       {/* Avatar */}
-      <div className="relative">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold">
+      <div className="relative flex-shrink-0">
+        <div className={cn(
+          "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold",
+          isMobile ? "w-14 h-14 text-lg" : "w-12 h-12"
+        )}>
           {user.fullName.charAt(0).toUpperCase()}
         </div>
         <div className={cn(
-          "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900",
+          "absolute -bottom-1 -right-1 rounded-full border-2 border-slate-900",
+          isMobile ? "w-5 h-5" : "w-4 h-4",
           getStatusColor()
         )} />
       </div>
 
       {/* User Info */}
       <div className="flex-1 min-w-0">
-        <h3 className="font-semibold text-white truncate">{user.fullName}</h3>
-        <p className="text-sm text-slate-400 truncate">{user.bio}</p>
+        <h3 className={cn(
+          "font-semibold text-white truncate",
+          isMobile ? "text-lg" : "text-base"
+        )}>
+          {user.fullName}
+        </h3>
+        <p className={cn(
+          "text-slate-400 truncate",
+          isMobile ? "text-sm" : "text-xs"
+        )}>
+          {user.bio}
+        </p>
         
-        <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+        <div className={cn(
+          "flex items-center gap-4 mt-2 text-slate-500",
+          isMobile ? "text-sm" : "text-xs"
+        )}>
           {user.location && (
             <div className="flex items-center gap-1">
               <MapPin className="size-3" />
-              {user.location}
+              <span className="truncate max-w-[100px]">{user.location}</span>
             </div>
           )}
           <div className="flex items-center gap-1">
             <Clock className="size-3" />
-            {user.presenceStatus}
+            <span className="capitalize">{user.presenceStatus}</span>
           </div>
         </div>
 
         {/* Interests */}
         {user.interests.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
-            {user.interests.slice(0, 3).map((interest, index) => (
+            {user.interests.slice(0, isMobile ? 2 : 3).map((interest, index) => (
               <span
                 key={index}
-                className="px-2 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full"
+                className={cn(
+                  "px-2 py-1 bg-cyan-500/20 text-cyan-300 rounded-full",
+                  isMobile ? "text-xs" : "text-xs"
+                )}
               >
                 {interest}
               </span>
             ))}
-            {user.interests.length > 3 && (
-              <span className="px-2 py-1 bg-slate-500/20 text-slate-400 text-xs rounded-full">
-                +{user.interests.length - 3}
+            {user.interests.length > (isMobile ? 2 : 3) && (
+              <span className={cn(
+                "px-2 py-1 bg-slate-500/20 text-slate-400 rounded-full",
+                isMobile ? "text-xs" : "text-xs"
+              )}>
+                +{user.interests.length - (isMobile ? 2 : 3)}
               </span>
             )}
           </div>
@@ -480,9 +547,12 @@ const UserSearchItem = ({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div className={cn(
+        "flex gap-2 flex-shrink-0",
+        isMobile ? "flex-col" : "flex-row"
+      )}>
         {user.connectionStatus === 'accepted' && (
-          <Button size="sm" variant="outline" onClick={onMessage}>
+          <Button size={isMobile ? "sm" : "xs"} variant="outline" onClick={onMessage}>
             <MessageSquare className="size-4" />
           </Button>
         )}
@@ -492,31 +562,47 @@ const UserSearchItem = ({
   );
 };
 
-// Connection Item Component
+// Mobile-optimized Connection Item Component
 const ConnectionItem = ({ 
   connection, 
   onMessage, 
-  onRespond 
+  onRespond,
+  isMobile = false
 }: { 
   connection: UserConnection; 
   onMessage: () => void; 
-  onRespond?: (response: 'accepted' | 'declined') => void; 
+  onRespond?: (response: 'accepted' | 'declined') => void;
+  isMobile?: boolean;
 }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200"
+      className={cn(
+        "flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation",
+        isMobile && "min-h-[80px]"
+      )}
     >
       {/* Avatar */}
-      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold">
+      <div className={cn(
+        "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold flex-shrink-0",
+        isMobile ? "w-14 h-14 text-lg" : "w-12 h-12"
+      )}>
         {connection.otherUserName.charAt(0).toUpperCase()}
       </div>
 
       {/* User Info */}
       <div className="flex-1 min-w-0">
-        <h3 className="font-semibold text-white truncate">{connection.otherUserName}</h3>
-        <div className="flex items-center gap-2 text-sm text-slate-400">
+        <h3 className={cn(
+          "font-semibold text-white truncate",
+          isMobile ? "text-lg" : "text-base"
+        )}>
+          {connection.otherUserName}
+        </h3>
+        <div className={cn(
+          "flex items-center gap-2 text-slate-400",
+          isMobile ? "text-sm" : "text-xs"
+        )}>
           <span className="capitalize">{connection.connectionType}</span>
           <span>•</span>
           <span className="capitalize">{connection.status}</span>
@@ -530,19 +616,22 @@ const ConnectionItem = ({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div className={cn(
+        "flex gap-2 flex-shrink-0",
+        isMobile ? "flex-col" : "flex-row"
+      )}>
         {connection.status === 'accepted' && (
-          <Button size="sm" variant="outline" onClick={onMessage}>
+          <Button size={isMobile ? "sm" : "xs"} variant="outline" onClick={onMessage}>
             <MessageSquare className="size-4" />
           </Button>
         )}
         
         {!connection.isRequester && connection.status === 'pending' && onRespond && (
           <>
-            <Button size="sm" variant="success" onClick={() => onRespond('accepted')}>
+            <Button size={isMobile ? "sm" : "xs"} variant="success" onClick={() => onRespond('accepted')}>
               <Check className="size-4" />
             </Button>
-            <Button size="sm" variant="danger" onClick={() => onRespond('declined')}>
+            <Button size={isMobile ? "sm" : "xs"} variant="danger" onClick={() => onRespond('declined')}>
               <X className="size-4" />
             </Button>
           </>
@@ -552,7 +641,7 @@ const ConnectionItem = ({
   );
 };
 
-// Main Chat Component
+// Main Chat Component with responsive design
 export const Chat: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [activeTab, setActiveTab] = useState<'chats' | 'users' | 'connections'>('chats');
@@ -560,6 +649,8 @@ export const Chat: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [connections, setConnections] = useState<UserConnection[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
@@ -599,6 +690,20 @@ export const Chat: React.FC = () => {
     createDirectMessage: createDMFromSearch,
   } = useUserSearch();
 
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(true);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Load connections
   const loadConnections = async () => {
     setLoadingConnections(true);
@@ -624,17 +729,22 @@ export const Chat: React.FC = () => {
     }
   }, [activeTab]);
 
+  // Close sidebar on mobile when room is selected
+  useEffect(() => {
+    if (isMobile && currentRoomId) {
+      setIsSidebarOpen(false);
+    }
+  }, [currentRoomId, isMobile]);
+
   // Handle typing indicators
   useEffect(() => {
     if (isTyping) {
       sendTyping(true);
       
-      // Clear existing timeout
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
       
-      // Set new timeout to stop typing
       typingTimeoutRef.current = setTimeout(() => {
         setIsTyping(false);
         sendTyping(false);
@@ -674,7 +784,6 @@ export const Chat: React.FC = () => {
       messageInputRef.current?.focus();
     } catch (error) {
       console.error('Failed to send message:', error);
-      // Show error to user
       alert(error instanceof Error ? error.message : 'Failed to send message');
     }
   };
@@ -683,8 +792,6 @@ export const Chat: React.FC = () => {
   const handleConnectUser = async (user: UserForCollaboration) => {
     try {
       await sendConnectionRequest(user.userId, 'collaborate');
-      // Refresh user list to update connection status
-      // The useUserSearch hook should handle this automatically
     } catch (error) {
       console.error('Failed to send connection request:', error);
       alert(error instanceof Error ? error.message : 'Failed to send connection request');
@@ -697,7 +804,7 @@ export const Chat: React.FC = () => {
       const roomId = await chatService.getOrCreateDMRoom(user.userId);
       setCurrentRoom(roomId);
       setActiveTab('chats');
-      await loadChatRooms(); // Refresh chat rooms list
+      await loadChatRooms();
     } catch (error) {
       console.error('Failed to create DM:', error);
       alert(error instanceof Error ? error.message : 'Failed to create chat');
@@ -708,8 +815,8 @@ export const Chat: React.FC = () => {
   const handleConnectionResponse = async (connectionId: string, response: 'accepted' | 'declined') => {
     try {
       await chatService.respondToConnectionRequest(connectionId, response);
-      await loadConnections(); // Refresh connections
-      await loadChatRooms(); // Refresh chat rooms if accepted
+      await loadConnections();
+      await loadChatRooms();
     } catch (error) {
       console.error('Failed to respond to connection:', error);
       alert(error instanceof Error ? error.message : 'Failed to respond to connection');
@@ -722,7 +829,7 @@ export const Chat: React.FC = () => {
       const roomId = await chatService.getOrCreateDMRoom(connection.otherUserId);
       setCurrentRoom(roomId);
       setActiveTab('chats');
-      await loadChatRooms(); // Refresh chat rooms list
+      await loadChatRooms();
     } catch (error) {
       console.error('Failed to create DM:', error);
       alert(error instanceof Error ? error.message : 'Failed to create chat');
@@ -753,18 +860,46 @@ export const Chat: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
-      <div className="flex h-full max-w-7xl mx-auto">
+      <div className="flex h-full max-w-7xl mx-auto relative">
+        
+        {/* Mobile Overlay */}
+        {isMobile && isSidebarOpen && (
+          <div 
+            className="absolute inset-0 bg-black/50 z-40"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
         
         {/* Sidebar */}
-        <div className="w-80 bg-gradient-to-b from-slate-900/95 to-slate-800/95 backdrop-blur-xl border-r border-slate-700/50 flex flex-col">
+        <div className={cn(
+          "bg-gradient-to-b from-slate-900/95 to-slate-800/95 backdrop-blur-xl border-r border-slate-700/50 flex flex-col transition-all duration-300 z-50",
+          isMobile 
+            ? cn(
+                "absolute left-0 top-0 h-full",
+                isSidebarOpen ? "w-80 translate-x-0" : "w-0 -translate-x-full"
+              )
+            : "w-80 relative"
+        )}>
           
           {/* Header */}
-          <div className="p-4 border-b border-slate-700/50">
+          <div className="p-4 border-b border-slate-700/50 flex-shrink-0">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-xl font-bold text-white">Collaboration Hub</h1>
-              <Button variant="ghost" size="icon" onClick={handleClose}>
-                <X className="size-5" />
-              </Button>
+              <h1 className={cn(
+                "font-bold text-white",
+                isMobile ? "text-lg" : "text-xl"
+              )}>
+                Collaboration Hub
+              </h1>
+              <div className="flex items-center gap-2">
+                {isMobile && (
+                  <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)}>
+                    <X className="size-5" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" onClick={handleClose}>
+                  <X className="size-5" />
+                </Button>
+              </div>
             </div>
 
             {/* Tab Switcher */}
@@ -772,7 +907,8 @@ export const Chat: React.FC = () => {
               <button
                 onClick={() => setActiveTab('chats')}
                 className={cn(
-                  "flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all duration-200",
+                  "flex-1 py-2 px-2 rounded-lg font-medium transition-all duration-200 text-center",
+                  isMobile ? "text-xs" : "text-sm",
                   activeTab === 'chats'
                     ? "bg-cyan-500 text-white"
                     : "text-slate-400 hover:text-white"
@@ -784,7 +920,8 @@ export const Chat: React.FC = () => {
               <button
                 onClick={() => setActiveTab('users')}
                 className={cn(
-                  "flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all duration-200",
+                  "flex-1 py-2 px-2 rounded-lg font-medium transition-all duration-200 text-center",
+                  isMobile ? "text-xs" : "text-sm",
                   activeTab === 'users'
                     ? "bg-cyan-500 text-white"
                     : "text-slate-400 hover:text-white"
@@ -796,14 +933,15 @@ export const Chat: React.FC = () => {
               <button
                 onClick={() => setActiveTab('connections')}
                 className={cn(
-                  "flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all duration-200",
+                  "flex-1 py-2 px-2 rounded-lg font-medium transition-all duration-200 text-center",
+                  isMobile ? "text-xs" : "text-sm",
                   activeTab === 'connections'
                     ? "bg-cyan-500 text-white"
                     : "text-slate-400 hover:text-white"
                 )}
               >
                 <UserCheck className="size-4 inline mr-1" />
-                Connections
+                Connect
               </button>
             </div>
           </div>
@@ -820,28 +958,30 @@ export const Chat: React.FC = () => {
                   className="h-full flex flex-col"
                 >
                   {/* Search */}
-                  <div className="p-4">
+                  <div className="p-4 flex-shrink-0">
                     <Input
                       placeholder="Search chats..."
                       icon={<Search className="size-4" />}
+                      fullWidth
                     />
                   </div>
 
                   {/* Chat Rooms List */}
-                  <div className="flex-1 overflow-y-auto px-4 space-y-2">
+                  <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
                     {loadingRooms ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="size-6 animate-spin text-cyan-400" />
                       </div>
                     ) : errorRooms ? (
                       <div className="text-center py-8 text-red-400">
-                        {errorRooms}
+                        <AlertCircle className="size-6 mx-auto mb-2" />
+                        <p className="text-sm">{errorRooms}</p>
                       </div>
                     ) : chatRooms.length === 0 ? (
                       <div className="text-center py-8 text-slate-400">
                         <MessageCircle className="size-12 mx-auto mb-4 opacity-50" />
-                        <p>No chats yet</p>
-                        <p className="text-sm">Start by connecting with users!</p>
+                        <p className={isMobile ? "text-base" : "text-sm"}>No chats yet</p>
+                        <p className={isMobile ? "text-sm" : "text-xs"}>Start by connecting with users!</p>
                       </div>
                     ) : (
                       chatRooms.map((room) => (
@@ -850,6 +990,7 @@ export const Chat: React.FC = () => {
                           room={room}
                           isActive={currentRoomId === room.id}
                           onClick={() => setCurrentRoom(room.id)}
+                          isMobile={isMobile}
                         />
                       ))
                     )}
@@ -864,30 +1005,32 @@ export const Chat: React.FC = () => {
                   className="h-full flex flex-col"
                 >
                   {/* Search */}
-                  <div className="p-4">
+                  <div className="p-4 flex-shrink-0">
                     <Input
                       placeholder="Search users..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       icon={<Search className="size-4" />}
+                      fullWidth
                     />
                   </div>
 
                   {/* Users List */}
-                  <div className="flex-1 overflow-y-auto px-4 space-y-3">
+                  <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4">
                     {loadingUsers ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="size-6 animate-spin text-cyan-400" />
                       </div>
                     ) : errorUsers ? (
                       <div className="text-center py-8 text-red-400">
-                        {errorUsers}
+                        <AlertCircle className="size-6 mx-auto mb-2" />
+                        <p className="text-sm">{errorUsers}</p>
                       </div>
                     ) : users.length === 0 ? (
                       <div className="text-center py-8 text-slate-400">
                         <Users className="size-12 mx-auto mb-4 opacity-50" />
-                        <p>No users found</p>
-                        <p className="text-sm">Try a different search term</p>
+                        <p className={isMobile ? "text-base" : "text-sm"}>No users found</p>
+                        <p className={isMobile ? "text-sm" : "text-xs"}>Try a different search term</p>
                       </div>
                     ) : (
                       users.map((user) => (
@@ -896,6 +1039,7 @@ export const Chat: React.FC = () => {
                           user={user}
                           onConnect={() => handleConnectUser(user)}
                           onMessage={() => handleMessageUser(user)}
+                          isMobile={isMobile}
                         />
                       ))
                     )}
@@ -910,13 +1054,23 @@ export const Chat: React.FC = () => {
                   className="h-full flex flex-col"
                 >
                   {/* Header */}
-                  <div className="p-4">
-                    <h2 className="text-lg font-semibold text-white mb-2">Your Connections</h2>
-                    <p className="text-sm text-slate-400">Manage your connections and requests</p>
+                  <div className="p-4 flex-shrink-0">
+                    <h2 className={cn(
+                      "font-semibold text-white mb-2",
+                      isMobile ? "text-base" : "text-lg"
+                    )}>
+                      Your Connections
+                    </h2>
+                    <p className={cn(
+                      "text-slate-400",
+                      isMobile ? "text-xs" : "text-sm"
+                    )}>
+                      Manage your connections and requests
+                    </p>
                   </div>
 
                   {/* Connections List */}
-                  <div className="flex-1 overflow-y-auto px-4 space-y-3">
+                  <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4">
                     {loadingConnections ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="size-6 animate-spin text-cyan-400" />
@@ -924,8 +1078,8 @@ export const Chat: React.FC = () => {
                     ) : connections.length === 0 ? (
                       <div className="text-center py-8 text-slate-400">
                         <UserCheck className="size-12 mx-auto mb-4 opacity-50" />
-                        <p>No connections yet</p>
-                        <p className="text-sm">Start connecting with users!</p>
+                        <p className={isMobile ? "text-base" : "text-sm"}>No connections yet</p>
+                        <p className={isMobile ? "text-sm" : "text-xs"}>Start connecting with users!</p>
                       </div>
                     ) : (
                       connections.map((connection) => (
@@ -934,6 +1088,7 @@ export const Chat: React.FC = () => {
                           connection={connection}
                           onMessage={() => handleMessageConnection(connection)}
                           onRespond={(response) => handleConnectionResponse(connection.id, response)}
+                          isMobile={isMobile}
                         />
                       ))
                     )}
@@ -947,45 +1102,84 @@ export const Chat: React.FC = () => {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl">
           
-          {currentRoomId ? (
-            <>
-              {/* Chat Header */}
-              <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center">
-                    <MessageCircle className="size-5 text-white" />
+          {/* Mobile Header Bar */}
+          {isMobile && (
+            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/90 backdrop-blur-sm">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsSidebarOpen(true)}
+              >
+                <Menu className="size-5" />
+              </Button>
+              
+              {currentRoomId && (
+                <div className="flex items-center gap-2 flex-1 mx-4">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center">
+                    <MessageCircle className="size-4 text-white" />
                   </div>
-                  <div>
-                    <h2 className="font-semibold text-white">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-semibold text-white text-sm truncate">
                       {chatRooms.find(r => r.id === currentRoomId)?.name || 'Chat Room'}
                     </h2>
-                    <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
                       <div className={cn(
-                        "w-2 h-2 rounded-full",
+                        "w-1.5 h-1.5 rounded-full",
                         isConnected ? "bg-green-500" : "bg-red-500"
                       )} />
                       {isConnected ? 'Connected' : 'Connecting...'}
-                      {typingUsers.length > 0 && (
-                        <span className="text-cyan-400">
-                          • {typingUsers.length} typing...
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
+              )}
+              
+              <Button variant="ghost" size="icon" onClick={handleClose}>
+                <X className="size-5" />
+              </Button>
+            </div>
+          )}
+          
+          {currentRoomId ? (
+            <>
+              {/* Desktop Chat Header */}
+              {!isMobile && (
+                <div className="p-4 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center">
+                      <MessageCircle className="size-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-white">
+                        {chatRooms.find(r => r.id === currentRoomId)?.name || 'Chat Room'}
+                      </h2>
+                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          isConnected ? "bg-green-500" : "bg-red-500"
+                        )} />
+                        {isConnected ? 'Connected' : 'Connecting...'}
+                        {typingUsers.length > 0 && (
+                          <span className="text-cyan-400">
+                            • {typingUsers.length} typing...
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon">
-                    <Phone className="size-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <Video className="size-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="size-5" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon">
+                      <Phone className="size-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                      <Video className="size-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                      <MoreVertical className="size-5" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Messages Area */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -996,13 +1190,13 @@ export const Chat: React.FC = () => {
                 ) : errorMessages ? (
                   <div className="text-center py-8 text-red-400">
                     <AlertCircle className="size-6 mx-auto mb-2" />
-                    {errorMessages}
+                    <p className="text-sm">{errorMessages}</p>
                   </div>
                 ) : currentRoomMessages.length === 0 ? (
                   <div className="text-center py-8 text-slate-400">
                     <MessageCircle className="size-12 mx-auto mb-4 opacity-50" />
-                    <p>No messages yet</p>
-                    <p className="text-sm">Start the conversation!</p>
+                    <p className={isMobile ? "text-base" : "text-sm"}>No messages yet</p>
+                    <p className={isMobile ? "text-sm" : "text-xs"}>Start the conversation!</p>
                   </div>
                 ) : (
                   currentRoomMessages.map((message, index) => {
@@ -1016,6 +1210,7 @@ export const Chat: React.FC = () => {
                         message={message}
                         isOwn={isOwn}
                         showSender={showSender}
+                        isMobile={isMobile}
                       />
                     );
                   })
@@ -1023,8 +1218,25 @@ export const Chat: React.FC = () => {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Typing Indicator */}
+              {typingUsers.length > 0 && (
+                <div className="px-4 pb-2">
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
+                    <span>{typingUsers.length} user{typingUsers.length > 1 ? 's' : ''} typing...</span>
+                  </div>
+                </div>
+              )}
+
               {/* Message Input */}
-              <div className="p-4 border-t border-slate-700/50">
+              <div className={cn(
+                "border-t border-slate-700/50 flex-shrink-0",
+                isMobile ? "p-3" : "p-4"
+              )}>
                 <form onSubmit={handleSendMessage} className="flex items-center gap-3">
                   <Button variant="ghost" size="icon" type="button">
                     <Paperclip className="size-5" />
@@ -1036,7 +1248,11 @@ export const Chat: React.FC = () => {
                       value={messageInput}
                       onChange={handleMessageInputChange}
                       placeholder="Type a message..."
-                      className="pr-12"
+                      className={cn(
+                        "pr-12",
+                        isMobile && "text-base" // Prevent zoom on iOS
+                      )}
+                      fullWidth
                     />
                     <Button
                       variant="ghost"
@@ -1061,33 +1277,50 @@ export const Chat: React.FC = () => {
             </>
           ) : (
             /* No Chat Selected */
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center space-y-4">
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="text-center space-y-4 max-w-md">
                 <div className="w-24 h-24 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto">
                   <MessageCircle className="size-12 text-cyan-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
+                  <h2 className={cn(
+                    "font-bold text-white mb-2",
+                    isMobile ? "text-xl" : "text-2xl"
+                  )}>
                     Welcome to Collaboration Hub
                   </h2>
-                  <p className="text-slate-400 max-w-md">
+                  <p className={cn(
+                    "text-slate-400",
+                    isMobile ? "text-sm" : "text-base"
+                  )}>
                     Select a chat to start messaging, or discover new users to collaborate with.
                   </p>
                 </div>
-                <div className="flex gap-3 justify-center">
+                <div className={cn(
+                  "flex gap-3 justify-center",
+                  isMobile ? "flex-col" : "flex-row"
+                )}>
                   <Button
                     variant="primary"
-                    onClick={() => setActiveTab('users')}
+                    onClick={() => {
+                      setActiveTab('users');
+                      if (isMobile) setIsSidebarOpen(true);
+                    }}
+                    fullWidth={isMobile}
                   >
                     <Users className="size-4 mr-2" />
                     Find Users
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setActiveTab('connections')}
+                    onClick={() => {
+                      setActiveTab('chats');
+                      if (isMobile) setIsSidebarOpen(true);
+                    }}
+                    fullWidth={isMobile}
                   >
-                    <UserCheck className="size-4 mr-2" />
-                    View Connections
+                    <MessageCircle className="size-4 mr-2" />
+                    View Chats
                   </Button>
                 </div>
               </div>

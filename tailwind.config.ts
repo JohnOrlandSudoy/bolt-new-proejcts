@@ -65,7 +65,8 @@ export default {
       },
       animation: {
         "spin-slow": "spin 3s linear infinite",
-        'fade-in': 'fade-in 0.2s ease-in-out'
+        'fade-in': 'fade-in 0.2s ease-in-out',
+        'fade-in-up': 'fadeInUp 0.3s ease-out',
       },
       boxShadow: {
         "wrapper-shadow":
@@ -93,7 +94,29 @@ export default {
         'fade-in': {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' }
+        },
+        'fadeInUp': {
+          '0%': { 
+            opacity: '0',
+            transform: 'translateY(20px)'
+          },
+          '100%': { 
+            opacity: '1',
+            transform: 'translateY(0)'
+          }
         }
+      },
+      screens: {
+        'xs': '475px',
+        'sm': '640px',
+        'md': '768px',
+        'lg': '1024px',
+        'xl': '1280px',
+        '2xl': '1536px',
+        // Custom breakpoints for better mobile experience
+        'mobile': {'max': '767px'},
+        'tablet': {'min': '768px', 'max': '1023px'},
+        'desktop': {'min': '1024px'},
       },
     },
   },
