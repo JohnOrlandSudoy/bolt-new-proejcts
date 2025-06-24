@@ -335,10 +335,10 @@ export const Settings: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-4xl max-h-[95vh] bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl rounded-3xl overflow-hidden">
+      <div className="relative w-full max-w-4xl h-[95vh] bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl rounded-3xl overflow-hidden flex flex-col">
         
         {/* Enhanced Header - Fixed at top */}
-        <div className="sticky top-0 z-20 bg-gradient-to-b from-black/95 to-black/80 backdrop-blur-lg border-b border-slate-600/30 p-6">
+        <div className="flex-shrink-0 bg-gradient-to-b from-black/95 to-black/80 backdrop-blur-lg border-b border-slate-600/30 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-gradient-to-r from-cyan-500/30 to-blue-500/30 border-2 border-cyan-500/40 shadow-lg">
@@ -360,8 +360,8 @@ export const Settings: React.FC = () => {
           </div>
         </div>
         
-        {/* Scrollable Content Area */}
-        <div className="overflow-y-auto max-h-[calc(95vh-140px)] p-6 space-y-6">
+        {/* Scrollable Content Area - Takes remaining space */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           
           {/* Personal Information */}
           <SettingsSection
@@ -513,7 +513,7 @@ export const Settings: React.FC = () => {
             </div>
           </SettingsSection>
 
-          {/* API Configuration */}
+          {/* API Configuration - Enhanced with better spacing */}
           <SettingsSection
             title="API Configuration"
             description="Manage your Tavus API credentials securely"
@@ -553,10 +553,13 @@ export const Settings: React.FC = () => {
               </div>
             </FormField>
           </SettingsSection>
+
+          {/* Extra padding at bottom to ensure API section is fully visible */}
+          <div className="h-8"></div>
         </div>
 
         {/* Enhanced Footer Actions - Fixed at bottom */}
-        <div className="sticky bottom-0 z-20 bg-gradient-to-t from-black/95 to-black/80 backdrop-blur-lg border-t border-slate-600/30 p-6">
+        <div className="flex-shrink-0 bg-gradient-to-t from-black/95 to-black/80 backdrop-blur-lg border-t border-slate-600/30 p-6">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div className="text-xs text-slate-300 leading-relaxed space-y-1">
               <div className="flex items-center gap-2 mb-2">
