@@ -463,7 +463,7 @@ export const Instructions: React.FC = () => {
           >
             <div className="text-center">
               <div className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                <50ms
+                {"<50ms"}
               </div>
               <div className="text-xs text-gray-500 font-medium">Latency</div>
             </div>

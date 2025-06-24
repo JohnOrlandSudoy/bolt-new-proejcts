@@ -13,7 +13,8 @@ export type Screen =
   | "positiveFeedback"
   | "negativeFeedback"
   | "finalScreen"
-  | "sessionEnded";
+  | "sessionEnded"
+  | "auth";
 
 interface ScreenState {
   currentScreen: Screen;
