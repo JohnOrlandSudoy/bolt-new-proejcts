@@ -6,7 +6,6 @@ import { AuthProvider } from "./components/AuthProvider";
 import {
   Home,
   Auth,
-  Profile,
   IntroLoading,
   Outage,
   OutOfMinutes,
@@ -26,8 +25,6 @@ function AppContent() {
         return <Home />;
       case "auth":
         return <Auth onSuccess={() => setScreenState({ currentScreen: "intro" })} />;
-      case "profile":
-        return <Profile />;
       case "introLoading":
         return <IntroLoading />;
       case "outage":
@@ -49,13 +46,11 @@ function AppContent() {
     }
   };
 
-  const showHeaderFooter = !["introLoading", "home", "auth", "profile"].includes(currentScreen);
-
   return (
     <main className="flex h-svh flex-col items-center justify-between gap-3 p-5 sm:gap-4 lg:p-8 bg-black">
-      {showHeaderFooter && <Header />}
+      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && <Header />}
       {renderScreen()}
-      {showHeaderFooter && <Footer />}
+      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && <Footer />}
     </main>
   );
 }
