@@ -47,7 +47,9 @@ import {
   Minimize2,
   Maximize2,
   Smile,
-  MoreVertical
+  MoreVertical,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { cn } from '@/utils';
 import { ChatMessage, ChatRoom, UserForCollaboration, UserConnection } from '@/services/chatService';
@@ -155,7 +157,7 @@ const Input = React.forwardRef<
 });
 Input.displayName = "Input";
 
-// Mobile-optimized Chat Room Item Component
+// Enhanced Chat Room Item Component with better styling
 const ChatRoomItem = ({ 
   room, 
   isActive, 
@@ -198,20 +200,29 @@ const ChatRoomItem = ({
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 rounded-xl cursor-pointer transition-all duration-200 touch-manipulation",
+        "flex items-center gap-3 rounded-xl cursor-pointer transition-all duration-200 touch-manipulation relative overflow-hidden",
         isMobile ? "p-4 min-h-[72px]" : "p-3", // Larger touch targets on mobile
         isActive 
-          ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30" 
-          : "hover:bg-white/10 border border-transparent"
+          ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 shadow-lg shadow-cyan-500/10" 
+          : "hover:bg-white/10 border border-transparent hover:shadow-md"
       )}
     >
+      {/* Active indicator */}
+      {isActive && (
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-400 to-blue-500 rounded-r-full" />
+      )}
+
       {/* Room Icon */}
       <div className={cn(
-        "flex items-center justify-center rounded-xl flex-shrink-0",
+        "flex items-center justify-center rounded-xl flex-shrink-0 relative",
         isMobile ? "w-12 h-12" : "w-10 h-10",
-        isActive ? "bg-cyan-500/30" : "bg-white/10"
+        isActive ? "bg-cyan-500/30 border border-cyan-400/50" : "bg-white/10 border border-white/20"
       )}>
         {getTypeIcon()}
+        {/* Online indicator for direct messages */}
+        {room.type === 'direct' && (
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-slate-900 rounded-full" />
+        )}
       </div>
 
       {/* Room Info */}
@@ -238,7 +249,7 @@ const ChatRoomItem = ({
             "text-slate-400 truncate",
             isMobile ? "text-sm mt-1" : "text-xs"
           )}>
-            <span className="font-medium">{room.latestMessage.senderName}:</span> {room.latestMessage.content}
+            <span className="font-medium text-slate-300">{room.latestMessage.senderName}:</span> {room.latestMessage.content}
           </p>
         )}
         
@@ -252,12 +263,16 @@ const ChatRoomItem = ({
           </div>
           
           {room.unreadCount > 0 && (
-            <div className={cn(
-              "bg-cyan-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center font-medium",
-              isMobile && "min-w-[24px] h-6"
-            )}>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className={cn(
+                "bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center font-bold shadow-lg",
+                isMobile && "min-w-[24px] h-6"
+              )}
+            >
               {room.unreadCount > 99 ? '99+' : room.unreadCount}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
@@ -265,7 +280,7 @@ const ChatRoomItem = ({
   );
 };
 
-// Mobile-optimized Message Component with real-time animations
+// Enhanced Message Component with better styling and animations
 const MessageItem = ({ 
   message, 
   isOwn, 
@@ -303,12 +318,16 @@ const MessageItem = ({
 
   if (message.messageType === 'system') {
     return (
-      <div className="flex justify-center my-4">
-        <div className="bg-white/10 text-slate-300 text-sm px-4 py-2 rounded-full flex items-center gap-2 max-w-[85%] text-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex justify-center my-4"
+      >
+        <div className="bg-white/10 text-slate-300 text-sm px-4 py-2 rounded-full flex items-center gap-2 max-w-[85%] text-center backdrop-blur-sm border border-white/20">
           <Settings className="size-3 flex-shrink-0" />
           <span className="break-words">{message.content}</span>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -324,7 +343,7 @@ const MessageItem = ({
         damping: 30
       }}
       className={cn(
-        "flex mb-4 animate-message-slide-in",
+        "flex mb-4 animate-message-slide-in group",
         isOwn ? "flex-row-reverse" : "flex-row",
         isMobile ? "gap-2 px-1" : "gap-3"
       )}
@@ -332,7 +351,7 @@ const MessageItem = ({
       {/* Avatar */}
       {showSender && !isOwn && (
         <div className={cn(
-          "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0",
+          "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 shadow-lg",
           isMobile ? "w-10 h-10" : "w-8 h-8"
         )}>
           {message.senderName.charAt(0).toUpperCase()}
@@ -354,7 +373,7 @@ const MessageItem = ({
 
         {/* Reply Context */}
         {message.replyTo && message.replyContent && (
-          <div className="bg-white/5 border-l-2 border-cyan-500 pl-3 py-2 rounded-r-lg max-w-full">
+          <div className="bg-white/5 border-l-2 border-cyan-500 pl-3 py-2 rounded-r-lg max-w-full backdrop-blur-sm">
             <p className="text-xs text-slate-400 truncate">
               {message.replyContent}
             </p>
@@ -367,22 +386,28 @@ const MessageItem = ({
           animate={{ scale: 1 }}
           transition={{ duration: 0.2, delay: isNew ? 0.1 : 0 }}
           className={cn(
-            "rounded-2xl break-words message-bubble",
+            "rounded-2xl break-words message-bubble relative overflow-hidden",
             isMobile ? "px-4 py-3 text-base leading-relaxed" : "px-4 py-3 text-sm",
             isOwn 
-              ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white message-bubble-own" 
-              : "bg-white/10 text-white message-bubble-other"
+              ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white message-bubble-own shadow-lg shadow-cyan-500/25" 
+              : "bg-white/10 text-white message-bubble-other backdrop-blur-sm border border-white/20"
           )}
         >
-          <div className="flex items-start gap-2">
+          {/* Message content */}
+          <div className="flex items-start gap-2 relative z-10">
             {getMessageTypeIcon()}
             <p className="break-words flex-1 whitespace-pre-wrap chat-message">
               {message.content}
             </p>
           </div>
+
+          {/* Shine effect for own messages */}
+          {isOwn && (
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-700" />
+          )}
         </motion.div>
 
-        {/* Message Time */}
+        {/* Message Time and Status */}
         <div className={cn(
           "text-xs text-slate-500 flex items-center gap-1 px-1",
           isOwn ? "justify-end" : "justify-start"
@@ -392,7 +417,13 @@ const MessageItem = ({
             <span className="text-slate-600">(edited)</span>
           )}
           {isOwn && (
-            <CheckCircle className="size-3 text-cyan-400" />
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <CheckCircle className="size-3 text-cyan-400" />
+            </motion.div>
           )}
         </div>
       </div>
@@ -400,7 +431,7 @@ const MessageItem = ({
   );
 };
 
-// Mobile-optimized User Search Item Component
+// Enhanced User Search Item Component
 const UserSearchItem = ({ 
   user, 
   onConnect, 
@@ -486,14 +517,14 @@ const UserSearchItem = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation interactive-hover",
+        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation interactive-hover border border-white/10 hover:border-white/20",
         isMobile ? "p-4 min-h-[80px]" : "p-4"
       )}
     >
       {/* Avatar */}
       <div className="relative flex-shrink-0">
         <div className={cn(
-          "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold",
+          "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold shadow-lg",
           isMobile ? "w-14 h-14 text-lg" : "w-12 h-12"
         )}>
           {user.fullName.charAt(0).toUpperCase()}
@@ -543,7 +574,7 @@ const UserSearchItem = ({
               <span
                 key={index}
                 className={cn(
-                  "px-2 py-1 bg-cyan-500/20 text-cyan-300 rounded-full",
+                  "px-2 py-1 bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/30",
                   isMobile ? "text-xs" : "text-xs"
                 )}
               >
@@ -552,7 +583,7 @@ const UserSearchItem = ({
             ))}
             {user.interests.length > (isMobile ? 2 : 3) && (
               <span className={cn(
-                "px-2 py-1 bg-slate-500/20 text-slate-400 rounded-full",
+                "px-2 py-1 bg-slate-500/20 text-slate-400 rounded-full border border-slate-500/30",
                 isMobile ? "text-xs" : "text-xs"
               )}>
                 +{user.interests.length - (isMobile ? 2 : 3)}
@@ -578,7 +609,7 @@ const UserSearchItem = ({
   );
 };
 
-// Mobile-optimized Connection Item Component
+// Connection Item Component
 const ConnectionItem = ({ 
   connection, 
   onMessage, 
@@ -595,13 +626,13 @@ const ConnectionItem = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation interactive-hover",
+        "flex items-center gap-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 touch-manipulation interactive-hover border border-white/10 hover:border-white/20",
         isMobile ? "p-4 min-h-[80px]" : "p-4"
       )}
     >
       {/* Avatar */}
       <div className={cn(
-        "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold flex-shrink-0",
+        "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold flex-shrink-0 shadow-lg",
         isMobile ? "w-14 h-14 text-lg" : "w-12 h-12"
       )}>
         {connection.otherUserName.charAt(0).toUpperCase()}
@@ -685,6 +716,43 @@ const TypingIndicator = ({ typingUsers, isMobile = false }: { typingUsers: strin
   );
 };
 
+// Notification Component
+const NotificationToast = ({ 
+  message, 
+  onClose 
+}: { 
+  message: string; 
+  onClose: () => void; 
+}) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -50, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -50, scale: 0.9 }}
+      className="fixed top-4 right-4 z-50 bg-gradient-to-r from-cyan-500 to-blue-500 text-white p-4 rounded-xl shadow-2xl max-w-sm"
+    >
+      <div className="flex items-center gap-3">
+        <Bell className="size-5 flex-shrink-0" />
+        <div className="flex-1">
+          <p className="font-medium">New Message</p>
+          <p className="text-sm opacity-90 truncate">{message}</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-white/80 hover:text-white transition-colors"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
 // Main Chat Component with enhanced real-time messaging
 export const Chat: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
@@ -696,6 +764,7 @@ export const Chat: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [newMessageIds, setNewMessageIds] = useState<Set<string>>(new Set());
+  const [notifications, setNotifications] = useState<Array<{ id: string; message: string }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
@@ -773,7 +842,7 @@ export const Chat: React.FC = () => {
     }
   }, [currentRoomMessages]);
 
-  // Track new messages for animation
+  // Track new messages for animation and notifications
   useEffect(() => {
     if (currentRoomMessages.length > 0) {
       const latestMessage = currentRoomMessages[currentRoomMessages.length - 1];
@@ -782,6 +851,15 @@ export const Chat: React.FC = () => {
       // Consider messages newer than 5 seconds as "new"
       if (messageAge < 5000) {
         setNewMessageIds(prev => new Set([...prev, latestMessage.id]));
+        
+        // Show notification for messages from others when not in focus
+        if (latestMessage.senderId !== 'current-user' && (!document.hasFocus() || !currentRoomId)) {
+          const notificationId = Date.now().toString();
+          setNotifications(prev => [...prev, {
+            id: notificationId,
+            message: `${latestMessage.senderName}: ${latestMessage.content}`
+          }]);
+        }
         
         // Remove from new messages after animation
         setTimeout(() => {
@@ -793,7 +871,7 @@ export const Chat: React.FC = () => {
         }, 1000);
       }
     }
-  }, [currentRoomMessages]);
+  }, [currentRoomMessages, currentRoomId]);
 
   // Load connections when tab changes
   useEffect(() => {
@@ -920,6 +998,11 @@ export const Chat: React.FC = () => {
     setScreenState({ currentScreen: "intro" });
   };
 
+  // Remove notification
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -938,467 +1021,480 @@ export const Chat: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm chat-container">
-      <div className="flex h-full max-w-7xl mx-auto relative">
-        
-        {/* Mobile Overlay */}
-        {isMobile && isSidebarOpen && (
-          <div 
-            className="absolute inset-0 bg-black/50 z-40"
-            onClick={() => setIsSidebarOpen(false)}
+    <>
+      {/* Notifications */}
+      <AnimatePresence>
+        {notifications.map((notification) => (
+          <NotificationToast
+            key={notification.id}
+            message={notification.message}
+            onClose={() => removeNotification(notification.id)}
           />
-        )}
-        
-        {/* Sidebar */}
-        <div className={cn(
-          "bg-gradient-to-b from-slate-900/95 to-slate-800/95 backdrop-blur-xl border-r border-slate-700/50 flex flex-col transition-all duration-300 z-50 chat-sidebar",
-          isMobile 
-            ? cn(
-                "absolute left-0 top-0 h-full",
-                isSidebarOpen ? "w-80 translate-x-0" : "w-0 -translate-x-full"
-              )
-            : "w-80 relative"
-        )}>
+        ))}
+      </AnimatePresence>
+
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm chat-container">
+        <div className="flex h-full max-w-7xl mx-auto relative">
           
-          {/* Header */}
-          <div className="p-4 border-b border-slate-700/50 flex-shrink-0 chat-header">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className={cn(
-                "font-bold text-white",
-                isMobile ? "text-lg" : "text-xl"
-              )}>
-                Collaboration Hub
-              </h1>
-              {/* Only show close button on mobile sidebar */}
-              {isMobile && (
-                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)}>
-                  <X className="size-5" />
-                </Button>
-              )}
-            </div>
-
-            {/* Tab Switcher */}
-            <div className="flex bg-white/10 rounded-xl p-1">
-              <button
-                onClick={() => setActiveTab('chats')}
-                className={cn(
-                  "flex-1 py-2 px-2 rounded-lg font-medium transition-all duration-200 text-center",
-                  isMobile ? "text-xs" : "text-sm",
-                  activeTab === 'chats'
-                    ? "bg-cyan-500 text-white"
-                    : "text-slate-400 hover:text-white"
-                )}
-              >
-                <MessageCircle className="size-4 inline mr-1" />
-                Chats
-              </button>
-              <button
-                onClick={() => setActiveTab('users')}
-                className={cn(
-                  "flex-1 py-2 px-2 rounded-lg font-medium transition-all duration-200 text-center",
-                  isMobile ? "text-xs" : "text-sm",
-                  activeTab === 'users'
-                    ? "bg-cyan-500 text-white"
-                    : "text-slate-400 hover:text-white"
-                )}
-              >
-                <Users className="size-4 inline mr-1" />
-                Users
-              </button>
-              <button
-                onClick={() => setActiveTab('connections')}
-                className={cn(
-                  "flex-1 py-2 px-2 rounded-lg font-medium transition-all duration-200 text-center",
-                  isMobile ? "text-xs" : "text-sm",
-                  activeTab === 'connections'
-                    ? "bg-cyan-500 text-white"
-                    : "text-slate-400 hover:text-white"
-                )}
-              >
-                <UserCheck className="size-4 inline mr-1" />
-                Connect
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-hidden">
-            <AnimatePresence mode="wait">
-              {activeTab === 'chats' ? (
-                <motion.div
-                  key="chats"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="h-full flex flex-col"
-                >
-                  {/* Search */}
-                  <div className="p-4 flex-shrink-0">
-                    <Input
-                      placeholder="Search chats..."
-                      icon={<Search className="size-4" />}
-                      fullWidth
-                    />
-                  </div>
-
-                  {/* Chat Rooms List */}
-                  <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4 hide-scrollbar">
-                    {loadingRooms ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="size-6 animate-spin text-cyan-400" />
-                      </div>
-                    ) : errorRooms ? (
-                      <div className="text-center py-8 text-red-400">
-                        <AlertCircle className="size-6 mx-auto mb-2" />
-                        <p className="text-sm">{errorRooms}</p>
-                      </div>
-                    ) : chatRooms.length === 0 ? (
-                      <div className="text-center py-8 text-slate-400">
-                        <MessageCircle className="size-12 mx-auto mb-4 opacity-50" />
-                        <p className={isMobile ? "text-base" : "text-sm"}>No chats yet</p>
-                        <p className={isMobile ? "text-sm" : "text-xs"}>Start by connecting with users!</p>
-                      </div>
-                    ) : (
-                      chatRooms.map((room) => (
-                        <ChatRoomItem
-                          key={room.id}
-                          room={room}
-                          isActive={currentRoomId === room.id}
-                          onClick={() => setCurrentRoom(room.id)}
-                          isMobile={isMobile}
-                        />
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              ) : activeTab === 'users' ? (
-                <motion.div
-                  key="users"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="h-full flex flex-col"
-                >
-                  {/* Search */}
-                  <div className="p-4 flex-shrink-0">
-                    <Input
-                      placeholder="Search users..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      icon={<Search className="size-4" />}
-                      fullWidth
-                    />
-                  </div>
-
-                  {/* Users List */}
-                  <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4 hide-scrollbar">
-                    {loadingUsers ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="size-6 animate-spin text-cyan-400" />
-                      </div>
-                    ) : errorUsers ? (
-                      <div className="text-center py-8 text-red-400">
-                        <AlertCircle className="size-6 mx-auto mb-2" />
-                        <p className="text-sm">{errorUsers}</p>
-                      </div>
-                    ) : users.length === 0 ? (
-                      <div className="text-center py-8 text-slate-400">
-                        <Users className="size-12 mx-auto mb-4 opacity-50" />
-                        <p className={isMobile ? "text-base" : "text-sm"}>No users found</p>
-                        <p className={isMobile ? "text-sm" : "text-xs"}>Try a different search term</p>
-                      </div>
-                    ) : (
-                      users.map((user) => (
-                        <UserSearchItem
-                          key={user.userId}
-                          user={user}
-                          onConnect={() => handleConnectUser(user)}
-                          onMessage={() => handleMessageUser(user)}
-                          isMobile={isMobile}
-                        />
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="connections"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="h-full flex flex-col"
-                >
-                  {/* Header */}
-                  <div className="p-4 flex-shrink-0">
-                    <h2 className={cn(
-                      "font-semibold text-white mb-2",
-                      isMobile ? "text-base" : "text-lg"
-                    )}>
-                      Your Connections
-                    </h2>
-                    <p className={cn(
-                      "text-slate-400",
-                      isMobile ? "text-xs" : "text-sm"
-                    )}>
-                      Manage your connections and requests
-                    </p>
-                  </div>
-
-                  {/* Connections List */}
-                  <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4 hide-scrollbar">
-                    {loadingConnections ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="size-6 animate-spin text-cyan-400" />
-                      </div>
-                    ) : connections.length === 0 ? (
-                      <div className="text-center py-8 text-slate-400">
-                        <UserCheck className="size-12 mx-auto mb-4 opacity-50" />
-                        <p className={isMobile ? "text-base" : "text-sm"}>No connections yet</p>
-                        <p className={isMobile ? "text-sm" : "text-xs"}>Start connecting with users!</p>
-                      </div>
-                    ) : (
-                      connections.map((connection) => (
-                        <ConnectionItem
-                          key={connection.id}
-                          connection={connection}
-                          onMessage={() => handleMessageConnection(connection)}
-                          onRespond={(response) => handleConnectionResponse(connection.id, response)}
-                          isMobile={isMobile}
-                        />
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl">
-          
-          {/* Mobile Header Bar */}
-          {isMobile && (
-            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/90 backdrop-blur-sm flex-shrink-0 chat-header">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsSidebarOpen(true)}
-              >
-                <Menu className="size-5" />
-              </Button>
-              
-              {currentRoomId && (
-                <div className="flex items-center gap-2 flex-1 mx-4">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center">
-                    <MessageCircle className="size-4 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="font-semibold text-white text-sm truncate">
-                      {chatRooms.find(r => r.id === currentRoomId)?.name || 'Chat Room'}
-                    </h2>
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <div className={cn(
-                        "w-1.5 h-1.5 rounded-full",
-                        isConnected ? "bg-green-500" : "bg-red-500"
-                      )} />
-                      {isConnected ? 'Connected' : 'Connecting...'}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <Button variant="ghost" size="icon" onClick={handleClose}>
-                <X className="size-5" />
-              </Button>
-            </div>
+          {/* Mobile Overlay */}
+          {isMobile && isSidebarOpen && (
+            <div 
+              className="absolute inset-0 bg-black/50 z-40"
+              onClick={() => setIsSidebarOpen(false)}
+            />
           )}
           
-          {currentRoomId ? (
-            <>
-              {/* Desktop Chat Header */}
-              {!isMobile && (
-                <div className="p-4 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0 chat-header">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center">
-                      <MessageCircle className="size-5 text-white" />
+          {/* Sidebar */}
+          <div className={cn(
+            "bg-gradient-to-b from-slate-900/95 to-slate-800/95 backdrop-blur-xl border-r border-slate-700/50 flex flex-col transition-all duration-300 z-50 chat-sidebar",
+            isMobile 
+              ? cn(
+                  "absolute left-0 top-0 h-full",
+                  isSidebarOpen ? "w-80 translate-x-0" : "w-0 -translate-x-full"
+                )
+              : "w-80 relative"
+          )}>
+            
+            {/* Header */}
+            <div className="p-4 border-b border-slate-700/50 flex-shrink-0 chat-header">
+              <div className="flex items-center justify-between mb-4">
+                <h1 className={cn(
+                  "font-bold text-white",
+                  isMobile ? "text-lg" : "text-xl"
+                )}>
+                  Collaboration Hub
+                </h1>
+                {/* Close button for mobile sidebar */}
+                {isMobile && (
+                  <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)}>
+                    <X className="size-5" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Tab Switcher */}
+              <div className="flex bg-white/10 rounded-xl p-1 backdrop-blur-sm">
+                <button
+                  onClick={() => setActiveTab('chats')}
+                  className={cn(
+                    "flex-1 py-2 px-2 rounded-lg font-medium transition-all duration-200 text-center",
+                    isMobile ? "text-xs" : "text-sm",
+                    activeTab === 'chats'
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg"
+                      : "text-slate-400 hover:text-white"
+                  )}
+                >
+                  <MessageCircle className="size-4 inline mr-1" />
+                  Chats
+                </button>
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={cn(
+                    "flex-1 py-2 px-2 rounded-lg font-medium transition-all duration-200 text-center",
+                    isMobile ? "text-xs" : "text-sm",
+                    activeTab === 'users'
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg"
+                      : "text-slate-400 hover:text-white"
+                  )}
+                >
+                  <Users className="size-4 inline mr-1" />
+                  Users
+                </button>
+                <button
+                  onClick={() => setActiveTab('connections')}
+                  className={cn(
+                    "flex-1 py-2 px-2 rounded-lg font-medium transition-all duration-200 text-center",
+                    isMobile ? "text-xs" : "text-sm",
+                    activeTab === 'connections'
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg"
+                      : "text-slate-400 hover:text-white"
+                  )}
+                >
+                  <UserCheck className="size-4 inline mr-1" />
+                  Connect
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-hidden">
+              <AnimatePresence mode="wait">
+                {activeTab === 'chats' ? (
+                  <motion.div
+                    key="chats"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="h-full flex flex-col"
+                  >
+                    {/* Search */}
+                    <div className="p-4 flex-shrink-0">
+                      <Input
+                        placeholder="Search chats..."
+                        icon={<Search className="size-4" />}
+                        fullWidth
+                      />
                     </div>
-                    <div>
-                      <h2 className="font-semibold text-white">
+
+                    {/* Chat Rooms List */}
+                    <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4 hide-scrollbar">
+                      {loadingRooms ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="size-6 animate-spin text-cyan-400" />
+                        </div>
+                      ) : errorRooms ? (
+                        <div className="text-center py-8 text-red-400">
+                          <AlertCircle className="size-6 mx-auto mb-2" />
+                          <p className="text-sm">{errorRooms}</p>
+                        </div>
+                      ) : chatRooms.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400">
+                          <MessageCircle className="size-12 mx-auto mb-4 opacity-50" />
+                          <p className={isMobile ? "text-base" : "text-sm"}>No chats yet</p>
+                          <p className={isMobile ? "text-sm" : "text-xs"}>Start by connecting with users!</p>
+                        </div>
+                      ) : (
+                        chatRooms.map((room) => (
+                          <ChatRoomItem
+                            key={room.id}
+                            room={room}
+                            isActive={currentRoomId === room.id}
+                            onClick={() => setCurrentRoom(room.id)}
+                            isMobile={isMobile}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                ) : activeTab === 'users' ? (
+                  <motion.div
+                    key="users"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="h-full flex flex-col"
+                  >
+                    {/* Search */}
+                    <div className="p-4 flex-shrink-0">
+                      <Input
+                        placeholder="Search users..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        icon={<Search className="size-4" />}
+                        fullWidth
+                      />
+                    </div>
+
+                    {/* Users List */}
+                    <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4 hide-scrollbar">
+                      {loadingUsers ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="size-6 animate-spin text-cyan-400" />
+                        </div>
+                      ) : errorUsers ? (
+                        <div className="text-center py-8 text-red-400">
+                          <AlertCircle className="size-6 mx-auto mb-2" />
+                          <p className="text-sm">{errorUsers}</p>
+                        </div>
+                      ) : users.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400">
+                          <Users className="size-12 mx-auto mb-4 opacity-50" />
+                          <p className={isMobile ? "text-base" : "text-sm"}>No users found</p>
+                          <p className={isMobile ? "text-sm" : "text-xs"}>Try a different search term</p>
+                        </div>
+                      ) : (
+                        users.map((user) => (
+                          <UserSearchItem
+                            key={user.userId}
+                            user={user}
+                            onConnect={() => handleConnectUser(user)}
+                            onMessage={() => handleMessageUser(user)}
+                            isMobile={isMobile}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="connections"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="h-full flex flex-col"
+                  >
+                    {/* Header */}
+                    <div className="p-4 flex-shrink-0">
+                      <h2 className={cn(
+                        "font-semibold text-white mb-2",
+                        isMobile ? "text-base" : "text-lg"
+                      )}>
+                        Your Connections
+                      </h2>
+                      <p className={cn(
+                        "text-slate-400",
+                        isMobile ? "text-xs" : "text-sm"
+                      )}>
+                        Manage your connections and requests
+                      </p>
+                    </div>
+
+                    {/* Connections List */}
+                    <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4 hide-scrollbar">
+                      {loadingConnections ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="size-6 animate-spin text-cyan-400" />
+                        </div>
+                      ) : connections.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400">
+                          <UserCheck className="size-12 mx-auto mb-4 opacity-50" />
+                          <p className={isMobile ? "text-base" : "text-sm"}>No connections yet</p>
+                          <p className={isMobile ? "text-sm" : "text-xs"}>Start connecting with users!</p>
+                        </div>
+                      ) : (
+                        connections.map((connection) => (
+                          <ConnectionItem
+                            key={connection.id}
+                            connection={connection}
+                            onMessage={() => handleMessageConnection(connection)}
+                            onRespond={(response) => handleConnectionResponse(connection.id, response)}
+                            isMobile={isMobile}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl">
+            
+            {/* Mobile Header Bar */}
+            {isMobile && (
+              <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/90 backdrop-blur-sm flex-shrink-0 chat-header">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSidebarOpen(true)}
+                >
+                  <Menu className="size-5" />
+                </Button>
+                
+                {currentRoomId && (
+                  <div className="flex items-center gap-2 flex-1 mx-4">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center">
+                      <MessageCircle className="size-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="font-semibold text-white text-sm truncate">
                         {chatRooms.find(r => r.id === currentRoomId)?.name || 'Chat Room'}
                       </h2>
-                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
                         <div className={cn(
-                          "w-2 h-2 rounded-full",
+                          "w-1.5 h-1.5 rounded-full",
                           isConnected ? "bg-green-500" : "bg-red-500"
                         )} />
                         {isConnected ? 'Connected' : 'Connecting...'}
-                        {typingUsers.length > 0 && (
-                          <span className="text-cyan-400">
-                            • {typingUsers.length} typing...
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="size-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={handleClose}>
-                      <X className="size-5" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
-                {loadingMessages ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="size-6 animate-spin text-cyan-400" />
-                  </div>
-                ) : errorMessages ? (
-                  <div className="text-center py-8 text-red-400">
-                    <AlertCircle className="size-6 mx-auto mb-2" />
-                    <p className="text-sm">{errorMessages}</p>
-                  </div>
-                ) : currentRoomMessages.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400">
-                    <MessageCircle className="size-12 mx-auto mb-4 opacity-50" />
-                    <p className={isMobile ? "text-base" : "text-sm"}>No messages yet</p>
-                    <p className={isMobile ? "text-sm" : "text-xs"}>Start the conversation!</p>
-                  </div>
-                ) : (
-                  currentRoomMessages.map((message, index) => {
-                    const isOwn = message.senderId === 'current-user'; // Replace with actual user ID
-                    const showSender = index === 0 || 
-                      currentRoomMessages[index - 1].senderId !== message.senderId;
-                    const isNew = newMessageIds.has(message.id);
-                    
-                    return (
-                      <MessageItem
-                        key={message.id}
-                        message={message}
-                        isOwn={isOwn}
-                        showSender={showSender}
-                        isMobile={isMobile}
-                        isNew={isNew}
-                      />
-                    );
-                  })
                 )}
-                <div ref={messagesEndRef} />
+                
+                <Button variant="ghost" size="icon" onClick={handleClose}>
+                  <X className="size-5" />
+                </Button>
               </div>
+            )}
+            
+            {currentRoomId ? (
+              <>
+                {/* Desktop Chat Header */}
+                {!isMobile && (
+                  <div className="p-4 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0 chat-header">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg">
+                        <MessageCircle className="size-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="font-semibold text-white">
+                          {chatRooms.find(r => r.id === currentRoomId)?.name || 'Chat Room'}
+                        </h2>
+                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            isConnected ? "bg-green-500" : "bg-red-500"
+                          )} />
+                          {isConnected ? 'Connected' : 'Connecting...'}
+                          {typingUsers.length > 0 && (
+                            <span className="text-cyan-400">
+                              • {typingUsers.length} typing...
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-              {/* Typing Indicator */}
-              <AnimatePresence>
-                {typingUsers.length > 0 && (
-                  <TypingIndicator typingUsers={typingUsers} isMobile={isMobile} />
-                )}
-              </AnimatePresence>
-
-              {/* Enhanced Message Input */}
-              <div className={cn(
-                "border-t border-slate-700/50 flex-shrink-0 safe-area-inset-bottom message-input-container",
-                isMobile ? "p-3" : "p-4"
-              )}>
-                <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-                  <div className="flex-1 relative">
-                    <Input
-                      ref={messageInputRef}
-                      value={messageInput}
-                      onChange={handleMessageInputChange}
-                      placeholder="Type a message..."
-                      className={cn(
-                        "pr-12 resize-none message-input",
-                        isMobile && "min-h-[48px]" // Larger on mobile
-                      )}
-                      fullWidth
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage(e);
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      type="button"
-                      className="absolute right-1 top-1/2 -translate-y-1/2"
-                    >
-                      <Smile className="size-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="size-5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={handleClose}>
+                        <X className="size-5" />
+                      </Button>
+                    </div>
                   </div>
-                  
-                  {/* Send Button */}
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="icon"
-                    disabled={!messageInput.trim()}
-                    className="flex-shrink-0"
-                  >
-                    <Send className="size-5" />
-                  </Button>
-                </form>
-              </div>
-            </>
-          ) : (
-            /* No Chat Selected */
-            <div className="flex-1 flex items-center justify-center p-6">
-              <div className="text-center space-y-4 max-w-md">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto">
-                  <MessageCircle className="size-12 text-cyan-400" />
+                )}
+
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
+                  {loadingMessages ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="size-6 animate-spin text-cyan-400" />
+                    </div>
+                  ) : errorMessages ? (
+                    <div className="text-center py-8 text-red-400">
+                      <AlertCircle className="size-6 mx-auto mb-2" />
+                      <p className="text-sm">{errorMessages}</p>
+                    </div>
+                  ) : currentRoomMessages.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400">
+                      <MessageCircle className="size-12 mx-auto mb-4 opacity-50" />
+                      <p className={isMobile ? "text-base" : "text-sm"}>No messages yet</p>
+                      <p className={isMobile ? "text-sm" : "text-xs"}>Start the conversation!</p>
+                    </div>
+                  ) : (
+                    currentRoomMessages.map((message, index) => {
+                      const isOwn = message.senderId === 'current-user'; // Replace with actual user ID
+                      const showSender = index === 0 || 
+                        currentRoomMessages[index - 1].senderId !== message.senderId;
+                      const isNew = newMessageIds.has(message.id);
+                      
+                      return (
+                        <MessageItem
+                          key={message.id}
+                          message={message}
+                          isOwn={isOwn}
+                          showSender={showSender}
+                          isMobile={isMobile}
+                          isNew={isNew}
+                        />
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
-                <div>
-                  <h2 className={cn(
-                    "font-bold text-white mb-2",
-                    isMobile ? "text-xl" : "text-2xl"
-                  )}>
-                    Welcome to Collaboration Hub
-                  </h2>
-                  <p className={cn(
-                    "text-slate-400",
-                    isMobile ? "text-sm" : "text-base"
-                  )}>
-                    Select a chat to start messaging, or discover new users to collaborate with.
-                  </p>
-                </div>
+
+                {/* Typing Indicator */}
+                <AnimatePresence>
+                  {typingUsers.length > 0 && (
+                    <TypingIndicator typingUsers={typingUsers} isMobile={isMobile} />
+                  )}
+                </AnimatePresence>
+
+                {/* Enhanced Message Input */}
                 <div className={cn(
-                  "flex gap-3 justify-center",
-                  isMobile ? "flex-col" : "flex-row"
+                  "border-t border-slate-700/50 flex-shrink-0 safe-area-inset-bottom message-input-container",
+                  isMobile ? "p-3" : "p-4"
                 )}>
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      setActiveTab('users');
-                      if (isMobile) setIsSidebarOpen(true);
-                    }}
-                    fullWidth={isMobile}
-                  >
-                    <Users className="size-4 mr-2" />
-                    Find Users
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setActiveTab('chats');
-                      if (isMobile) setIsSidebarOpen(true);
-                    }}
-                    fullWidth={isMobile}
-                  >
-                    <MessageCircle className="size-4 mr-2" />
-                    View Chats
-                  </Button>
+                  <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+                    <div className="flex-1 relative">
+                      <Input
+                        ref={messageInputRef}
+                        value={messageInput}
+                        onChange={handleMessageInputChange}
+                        placeholder="Type a message..."
+                        className={cn(
+                          "pr-12 resize-none message-input",
+                          isMobile && "min-h-[48px]" // Larger on mobile
+                        )}
+                        fullWidth
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(e);
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        type="button"
+                        className="absolute right-1 top-1/2 -translate-y-1/2"
+                      >
+                        <Smile className="size-4" />
+                      </Button>
+                    </div>
+                    
+                    {/* Send Button */}
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="icon"
+                      disabled={!messageInput.trim()}
+                      className="flex-shrink-0 shadow-lg"
+                    >
+                      <Send className="size-5" />
+                    </Button>
+                  </form>
+                </div>
+              </>
+            ) : (
+              /* No Chat Selected */
+              <div className="flex-1 flex items-center justify-center p-6">
+                <div className="text-center space-y-4 max-w-md">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto">
+                    <MessageCircle className="size-12 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h2 className={cn(
+                      "font-bold text-white mb-2",
+                      isMobile ? "text-xl" : "text-2xl"
+                    )}>
+                      Welcome to Collaboration Hub
+                    </h2>
+                    <p className={cn(
+                      "text-slate-400",
+                      isMobile ? "text-sm" : "text-base"
+                    )}>
+                      Select a chat to start messaging, or discover new users to collaborate with.
+                    </p>
+                  </div>
+                  <div className={cn(
+                    "flex gap-3 justify-center",
+                    isMobile ? "flex-col" : "flex-row"
+                  )}>
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        setActiveTab('users');
+                        if (isMobile) setIsSidebarOpen(true);
+                      }}
+                      fullWidth={isMobile}
+                    >
+                      <Users className="size-4 mr-2" />
+                      Find Users
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setActiveTab('chats');
+                        if (isMobile) setIsSidebarOpen(true);
+                      }}
+                      fullWidth={isMobile}
+                    >
+                      <MessageCircle className="size-4 mr-2" />
+                      View Chats
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
