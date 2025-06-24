@@ -29,7 +29,8 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  Bug
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -232,14 +233,15 @@ const Label = React.forwardRef<
 });
 Label.displayName = "Label";
 
-// Photo Upload Component with improved image handling
+// Photo Upload Component with improved image handling and debug mode
 const PhotoUpload = ({ 
   label, 
   currentPhoto, 
   onPhotoChange, 
   aspectRatio = "square",
   icon = Camera,
-  loading = false
+  loading = false,
+  showDebugInfo = false
 }: {
   label: string;
   currentPhoto?: string;
@@ -247,6 +249,7 @@ const PhotoUpload = ({
   aspectRatio?: "square" | "cover";
   icon?: any;
   loading?: boolean;
+  showDebugInfo?: boolean;
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -316,6 +319,7 @@ const PhotoUpload = ({
               className="w-full h-full"
               errorMessage="Failed to load image"
               onRetry={handleRetryPhoto}
+              showDebugInfo={showDebugInfo}
             />
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
               <Button
@@ -538,6 +542,7 @@ export const Profile: React.FC = () => {
     profile: boolean;
     cover: boolean;
   }>({ profile: false, cover: false });
+  const [debugMode, setDebugMode] = useState(false);
 
   // Use the profile hook for database operations
   const { 
@@ -667,6 +672,11 @@ export const Profile: React.FC = () => {
     }
   };
 
+  const handleDebugStorage = async () => {
+    console.log('Running storage debug...');
+    await profileService.debugStorageBucket();
+  };
+
   // Show loading while checking authentication
   if (isLoading || profileLoading) {
     return (
@@ -702,19 +712,48 @@ export const Profile: React.FC = () => {
                 <p className="text-sm text-slate-300">Tell us about yourself to personalize your AI experience</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="hover:bg-red-500/20 hover:text-red-400 border-2 border-transparent hover:border-red-500/30"
-            >
-              <X className="size-6" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Debug toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDebugMode(!debugMode)}
+                className="hover:bg-yellow-500/20 hover:text-yellow-400"
+                title="Toggle debug mode"
+              >
+                <Bug className="size-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="hover:bg-red-500/20 hover:text-red-400 border-2 border-transparent hover:border-red-500/30"
+              >
+                <X className="size-6" />
+              </Button>
+            </div>
           </div>
         </div>
         
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          
+          {/* Debug Panel */}
+          {debugMode && (
+            <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+              <div className="flex items-center gap-2 mb-3">
+                <Bug className="size-5 text-yellow-400" />
+                <h3 className="text-yellow-400 font-semibold">Debug Mode</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <p className="text-yellow-300">Profile Photo: {localProfile.profilePhoto ? 'Set' : 'Not set'}</p>
+                <p className="text-yellow-300">Cover Photo: {localProfile.coverPhoto ? 'Set' : 'Not set'}</p>
+                <Button size="sm" variant="outline" onClick={handleDebugStorage}>
+                  Test Storage
+                </Button>
+              </div>
+            </div>
+          )}
           
           {/* Error/Success Messages */}
           {profileError && (
@@ -743,6 +782,7 @@ export const Profile: React.FC = () => {
                 aspectRatio="square"
                 icon={User}
                 loading={photoUploading.profile}
+                showDebugInfo={debugMode}
               />
               <PhotoUpload
                 label="Cover Photo"
@@ -751,6 +791,7 @@ export const Profile: React.FC = () => {
                 aspectRatio="cover"
                 icon={ImageIcon}
                 loading={photoUploading.cover}
+                showDebugInfo={debugMode}
               />
             </div>
           </ProfileSection>
@@ -931,6 +972,7 @@ export const Profile: React.FC = () => {
                 <p>• All fields are optional except your name</p>
                 <p>• Your profile helps personalize AI conversations</p>
                 <p>• Data is stored securely in the cloud</p>
+                {debugMode && <p className="text-yellow-400">• Debug mode is enabled - check console for logs</p>}
               </div>
             </div>
             <div className="flex gap-3 w-full lg:w-auto">

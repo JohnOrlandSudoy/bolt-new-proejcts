@@ -27,17 +27,22 @@ export interface ProfileWithInterests {
 }
 
 class ProfileService {
-  // Get the correct public URL for an image
+  // Get the correct public URL for an image with enhanced error handling
   getImageUrl(path: string): string {
-    if (!path) return '';
+    if (!path) {
+      console.log('getImageUrl: No path provided');
+      return '';
+    }
     
     // If it's already a full URL, return as is
     if (path.startsWith('http')) {
+      console.log('getImageUrl: Already a full URL:', path);
       return path;
     }
     
     // If it's a base64 data URL, return as is
     if (path.startsWith('data:')) {
+      console.log('getImageUrl: Base64 data URL, length:', path.length);
       return path;
     }
     
@@ -47,17 +52,52 @@ class ProfileService {
         .from('user-uploads')
         .getPublicUrl(path);
       
-      console.log('Generated public URL for path:', path, '-> URL:', data.publicUrl);
-      return data.publicUrl;
+      console.log('getImageUrl: Generated public URL for path:', path, '-> URL:', data.publicUrl);
+      
+      // Verify the URL format
+      if (data.publicUrl && data.publicUrl.includes('/storage/v1/object/public/')) {
+        return data.publicUrl;
+      } else {
+        console.error('getImageUrl: Invalid URL format generated:', data.publicUrl);
+        return path; // Return original path as fallback
+      }
     } catch (error) {
-      console.error('Error generating public URL:', error);
+      console.error('getImageUrl: Error generating public URL:', error);
       return path; // Return original path as fallback
+    }
+  }
+
+  // Test if an image URL is accessible
+  async testImageUrl(url: string): Promise<{ accessible: boolean; error?: string }> {
+    try {
+      console.log('Testing image URL accessibility:', url);
+      
+      const response = await fetch(url, { 
+        method: 'HEAD',
+        mode: 'cors',
+        cache: 'no-cache'
+      });
+      
+      if (response.ok) {
+        console.log('Image URL is accessible:', url);
+        return { accessible: true };
+      } else {
+        const error = `HTTP ${response.status}: ${response.statusText}`;
+        console.error('Image URL not accessible:', url, error);
+        return { accessible: false, error };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Image URL test failed:', url, errorMessage);
+      return { accessible: false, error: errorMessage };
     }
   }
 
   // Upload photo to Supabase Storage with proper folder structure
   async uploadPhoto(file: File, bucket: 'profile-photos' | 'cover-photos', userId: string): Promise<string> {
     try {
+      console.log('Starting photo upload:', { fileName: file.name, fileType: file.type, fileSize: file.size, bucket, userId });
+      
       // Validate file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
@@ -80,7 +120,8 @@ class ProfileService {
         .from('user-uploads')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: true
+          upsert: true,
+          contentType: file.type
         });
 
       if (error) {
@@ -89,6 +130,14 @@ class ProfileService {
       }
 
       console.log('Upload successful:', data);
+
+      // Test the uploaded image URL
+      const publicUrl = this.getImageUrl(filePath);
+      const urlTest = await this.testImageUrl(publicUrl);
+      
+      if (!urlTest.accessible) {
+        console.warn('Uploaded image may not be accessible:', urlTest.error);
+      }
 
       // Return the file path (not the full URL) to store in database
       return filePath;
@@ -124,7 +173,7 @@ class ProfileService {
       // Create file from blob
       const file = new File([blob], `photo.${mimeType.split('/')[1]}`, { type: mimeType });
       
-      console.log('File created:', { name: file.name, size: file.size, type: file.type });
+      console.log('File created from base64:', { name: file.name, size: file.size, type: file.type });
       
       return await this.uploadPhoto(file, bucket, userId);
     } catch (error) {
@@ -278,7 +327,7 @@ class ProfileService {
     }
   }
 
-  // Convert database profile to UserProfile format
+  // Convert database profile to UserProfile format with enhanced URL handling
   convertToUserProfile(dbProfile: ProfileWithInterests): UserProfile {
     const profilePhoto = this.getImageUrl(dbProfile.profile.profile_photo || '');
     const coverPhoto = this.getImageUrl(dbProfile.profile.cover_photo || '');
@@ -289,6 +338,23 @@ class ProfileService {
       originalCoverPhoto: dbProfile.profile.cover_photo,
       convertedCoverPhoto: coverPhoto
     });
+
+    // Test image URLs asynchronously (don't block the conversion)
+    if (profilePhoto && profilePhoto.startsWith('http')) {
+      this.testImageUrl(profilePhoto).then(result => {
+        if (!result.accessible) {
+          console.warn('Profile photo may not be accessible:', result.error);
+        }
+      });
+    }
+
+    if (coverPhoto && coverPhoto.startsWith('http')) {
+      this.testImageUrl(coverPhoto).then(result => {
+        if (!result.accessible) {
+          console.warn('Cover photo may not be accessible:', result.error);
+        }
+      });
+    }
 
     return {
       id: dbProfile.profile.id,
@@ -424,17 +490,6 @@ class ProfileService {
     }
   }
 
-  // Test image URL accessibility
-  async testImageUrl(url: string): Promise<boolean> {
-    try {
-      const response = await fetch(url, { method: 'HEAD' });
-      return response.ok;
-    } catch (error) {
-      console.error('Image URL test failed:', error);
-      return false;
-    }
-  }
-
   // Get signed URL for private images (if needed)
   async getSignedUrl(path: string, expiresIn: number = 3600): Promise<string> {
     try {
@@ -476,6 +531,48 @@ class ProfileService {
     
     // Check if it's a valid storage path
     return imageData.includes('/') && imageData.length > 0;
+  }
+
+  // Debug function to check storage bucket configuration
+  async debugStorageBucket(): Promise<void> {
+    try {
+      console.log('=== Storage Bucket Debug Info ===');
+      
+      // Check if bucket exists
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
+      if (bucketsError) {
+        console.error('Error listing buckets:', bucketsError);
+        return;
+      }
+      
+      const userUploadsBucket = buckets.find(bucket => bucket.id === 'user-uploads');
+      
+      if (userUploadsBucket) {
+        console.log('user-uploads bucket found:', userUploadsBucket);
+      } else {
+        console.error('user-uploads bucket NOT found. Available buckets:', buckets.map(b => b.id));
+      }
+      
+      // Test a sample upload
+      const testFile = new File(['test'], 'test.txt', { type: 'text/plain' });
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('user-uploads')
+        .upload('test/test.txt', testFile);
+      
+      if (uploadError) {
+        console.error('Test upload failed:', uploadError);
+      } else {
+        console.log('Test upload successful:', uploadData);
+        
+        // Clean up test file
+        await supabase.storage.from('user-uploads').remove(['test/test.txt']);
+      }
+      
+      console.log('=== End Storage Debug ===');
+    } catch (error) {
+      console.error('Storage debug failed:', error);
+    }
   }
 }
 
