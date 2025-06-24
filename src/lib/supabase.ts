@@ -166,61 +166,103 @@ export interface Database {
 export const profileService = {
   // Get user profile with interests
   async getUserProfile(userId: string) {
-    const { data, error } = await supabase.rpc('get_user_profile_with_interests', {
-      profile_user_id: userId
-    });
-    
-    if (error) throw error;
-    return data;
+    try {
+      console.log('Fetching profile for user:', userId);
+      
+      const { data, error } = await supabase.rpc('get_user_profile_with_interests', {
+        profile_user_id: userId
+      });
+      
+      if (error) {
+        console.error('Supabase RPC error:', error);
+        throw error;
+      }
+      
+      console.log('Profile data from Supabase:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in getUserProfile:', error);
+      throw error;
+    }
   },
 
   // Create or update user profile
   async upsertProfile(userId: string, profileData: any) {
-    const { data, error } = await supabase.rpc('upsert_user_profile', {
-      profile_user_id: userId,
-      profile_email: profileData.email,
-      profile_photo: profileData.profilePhoto,
-      cover_photo: profileData.coverPhoto,
-      full_name: profileData.fullName,
-      birthday: profileData.birthday,
-      bio: profileData.bio,
-      job: profileData.job,
-      fashion: profileData.fashion,
-      age: profileData.age,
-      relationship_status: profileData.relationshipStatus,
-      location: profileData.location,
-      website: profileData.website,
-      phone: profileData.phone
-    });
-    
-    if (error) throw error;
-    return data;
+    try {
+      console.log('Upserting profile for user:', userId, profileData);
+      
+      const { data, error } = await supabase.rpc('upsert_user_profile', {
+        profile_user_id: userId,
+        profile_email: profileData.email || "",
+        profile_photo: profileData.profilePhoto || null,
+        cover_photo: profileData.coverPhoto || null,
+        full_name: profileData.fullName || "",
+        birthday: profileData.birthday || null,
+        bio: profileData.bio || "",
+        job: profileData.job || "",
+        fashion: profileData.fashion || "",
+        age: profileData.age || null,
+        relationship_status: profileData.relationshipStatus || "prefer-not-to-say",
+        location: profileData.location || null,
+        website: profileData.website || null,
+        phone: profileData.phone || null
+      });
+      
+      if (error) {
+        console.error('Supabase upsert profile error:', error);
+        throw error;
+      }
+      
+      console.log('Profile upserted successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in upsertProfile:', error);
+      throw error;
+    }
   },
 
   // Update user interests
   async updateInterests(userId: string, interests: string[]) {
-    const { error } = await supabase.rpc('upsert_user_interests', {
-      profile_user_id: userId,
-      interests_array: interests
-    });
-    
-    if (error) throw error;
+    try {
+      console.log('Updating interests for user:', userId, interests);
+      
+      const { error } = await supabase.rpc('upsert_user_interests', {
+        profile_user_id: userId,
+        interests_array: interests || []
+      });
+      
+      if (error) {
+        console.error('Supabase upsert interests error:', error);
+        throw error;
+      }
+      
+      console.log('Interests updated successfully');
+    } catch (error) {
+      console.error('Error in updateInterests:', error);
+      throw error;
+    }
   },
 
   // Save complete profile (profile + interests)
   async saveCompleteProfile(userId: string, profileData: any) {
     try {
-      // Save profile data
+      console.log('Saving complete profile for user:', userId, profileData);
+      
+      // Save profile data first
       await this.upsertProfile(userId, profileData);
       
-      // Save interests
-      if (profileData.interests && profileData.interests.length > 0) {
+      // Save interests if they exist
+      if (profileData.interests && Array.isArray(profileData.interests) && profileData.interests.length > 0) {
         await this.updateInterests(userId, profileData.interests);
+      } else {
+        // Clear interests if none provided
+        await this.updateInterests(userId, []);
       }
       
+      console.log('Complete profile saved successfully');
       return true;
     } catch (error) {
-      console.error('Error saving profile:', error);
+      console.error('Error saving complete profile:', error);
       throw error;
     }
   }

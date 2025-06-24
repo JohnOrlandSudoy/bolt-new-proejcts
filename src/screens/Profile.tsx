@@ -30,7 +30,9 @@ import {
   Edit3,
   Plus,
   Trash2,
-  Loader2
+  Loader2,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -451,6 +453,43 @@ const FormField = ({
   );
 };
 
+// Status Message Component
+const StatusMessage = ({ 
+  type, 
+  message 
+}: { 
+  type: "success" | "error" | "info"; 
+  message: string; 
+}) => {
+  const icons = {
+    success: CheckCircle,
+    error: AlertCircle,
+    info: Loader2
+  };
+  
+  const colors = {
+    success: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+    error: "text-red-400 border-red-500/30 bg-red-500/10",
+    info: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10"
+  };
+  
+  const Icon = icons[type];
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className={cn(
+        "flex items-center gap-3 p-4 rounded-xl border backdrop-blur-sm",
+        colors[type]
+      )}
+    >
+      <Icon className={cn("size-5 flex-shrink-0", type === "info" && "animate-spin")} />
+      <p className="text-sm font-medium">{message}</p>
+    </motion.div>
+  );
+};
+
 export const Profile: React.FC = () => {
   const [profile, setProfile] = useAtom(userProfileAtom);
   const [, setScreenState] = useAtom(screenAtom);
@@ -459,6 +498,10 @@ export const Profile: React.FC = () => {
   const { user } = useAuthContext();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<{
+    type: "success" | "error" | "info" | null;
+    message: string;
+  }>({ type: null, message: "" });
 
   // Enforce authentication for this screen
   const { isAuthenticated, isLoading } = useAuthGuard({
@@ -510,32 +553,68 @@ export const Profile: React.FC = () => {
     if (!validateForm()) return;
 
     setIsSaving(true);
+    setSaveStatus({ type: "info", message: "Saving your profile..." });
     
     try {
       console.log('Saving profile:', profile);
       
+      // Ensure we have the user's email
       const updatedProfile = {
         ...profile,
-        email: user?.email || profile.email,
+        email: user?.email || profile.email || "",
         updatedAt: new Date().toISOString(),
       };
       
+      // Update the profile atom first
+      setProfile(updatedProfile);
+      
       if (user?.id) {
-        // Save to Supabase
+        // Save to Supabase using the store action
         const store = getDefaultStore();
         await store.set(saveProfileAtom, user.id);
+        
+        setSaveStatus({ 
+          type: "success", 
+          message: "Profile saved successfully to cloud!" 
+        });
       } else {
         // Fallback to localStorage only
         localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
         setProfileSaved(true);
+        
+        setSaveStatus({ 
+          type: "success", 
+          message: "Profile saved locally!" 
+        });
       }
       
-      handleClose();
+      // Close after a brief delay to show success message
+      setTimeout(() => {
+        handleClose();
+      }, 1500);
+      
     } catch (error) {
       console.error('Error saving profile:', error);
-      // Even if Supabase fails, we still saved to localStorage
+      
+      // Even if Supabase fails, save to localStorage
+      const updatedProfile = {
+        ...profile,
+        email: user?.email || profile.email || "",
+        updatedAt: new Date().toISOString(),
+      };
+      
+      localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
       setProfileSaved(true);
-      handleClose();
+      
+      setSaveStatus({ 
+        type: "error", 
+        message: "Saved locally, but cloud sync failed. Will retry next time." 
+      });
+      
+      // Still close after showing error
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
     } finally {
       setIsSaving(false);
     }
@@ -597,6 +676,13 @@ export const Profile: React.FC = () => {
             </Button>
           </div>
         </div>
+        
+        {/* Status Message */}
+        {saveStatus.type && (
+          <div className="flex-shrink-0 p-4 border-b border-slate-600/30">
+            <StatusMessage type={saveStatus.type} message={saveStatus.message} />
+          </div>
+        )}
         
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">

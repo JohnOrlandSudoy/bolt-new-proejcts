@@ -25,7 +25,11 @@ export interface UserProfile {
 const getInitialProfile = (): UserProfile => {
   const savedProfile = localStorage.getItem('user-profile');
   if (savedProfile) {
-    return JSON.parse(savedProfile);
+    try {
+      return JSON.parse(savedProfile);
+    } catch (error) {
+      console.error('Error parsing saved profile:', error);
+    }
   }
   return {
     fullName: "",
@@ -56,7 +60,10 @@ export const loadProfileAtom = atom(
   async (get, set, userId: string) => {
     set(profileLoadingAtom, true);
     try {
+      console.log('Loading profile for user:', userId);
       const profileData = await profileService.getUserProfile(userId);
+      
+      console.log('Received profile data:', profileData);
       
       if (profileData && profileData.profile) {
         const profile = profileData.profile;
@@ -83,17 +90,24 @@ export const loadProfileAtom = atom(
           updatedAt: profile.updated_at,
         };
         
+        console.log('Setting profile:', userProfile);
         set(userProfileAtom, userProfile);
         
         // Also save to localStorage as backup
         localStorage.setItem('user-profile', JSON.stringify(userProfile));
+      } else {
+        console.log('No profile data found, keeping current profile');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
       // Fall back to localStorage if Supabase fails
       const savedProfile = localStorage.getItem('user-profile');
       if (savedProfile) {
-        set(userProfileAtom, JSON.parse(savedProfile));
+        try {
+          set(userProfileAtom, JSON.parse(savedProfile));
+        } catch (parseError) {
+          console.error('Error parsing localStorage profile:', parseError);
+        }
       }
     } finally {
       set(profileLoadingAtom, false);
@@ -109,14 +123,41 @@ export const saveProfileAtom = atom(
     try {
       const profile = get(userProfileAtom);
       
+      console.log('Saving profile to Supabase:', profile);
+      
+      // Prepare profile data for Supabase
+      const profileData = {
+        email: profile.email || "",
+        profilePhoto: profile.profilePhoto || null,
+        coverPhoto: profile.coverPhoto || null,
+        fullName: profile.fullName || "",
+        birthday: profile.birthday || null,
+        bio: profile.bio || "",
+        job: profile.job || "",
+        fashion: profile.fashion || "",
+        age: profile.age || null,
+        relationshipStatus: profile.relationshipStatus || "prefer-not-to-say",
+        location: profile.location || null,
+        website: profile.website || null,
+        phone: profile.phone || null,
+        interests: profile.interests || [],
+      };
+      
       // Save to Supabase
-      await profileService.saveCompleteProfile(userId, {
+      await profileService.saveCompleteProfile(userId, profileData);
+      
+      console.log('Profile saved successfully to Supabase');
+      
+      // Update the profile with the current timestamp
+      const updatedProfile = {
         ...profile,
-        email: profile.email || "", // Ensure email is provided
-      });
+        updatedAt: new Date().toISOString(),
+      };
+      
+      set(userProfileAtom, updatedProfile);
       
       // Also save to localStorage as backup
-      localStorage.setItem('user-profile', JSON.stringify(profile));
+      localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
       
       set(profileSavedAtom, true);
       
@@ -127,10 +168,16 @@ export const saveProfileAtom = atom(
       
       return true;
     } catch (error) {
-      console.error('Error saving profile:', error);
+      console.error('Error saving profile to Supabase:', error);
       
       // Fall back to localStorage only
-      localStorage.setItem('user-profile', JSON.stringify(get(userProfileAtom)));
+      const profile = get(userProfileAtom);
+      const updatedProfile = {
+        ...profile,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
       set(profileSavedAtom, true);
       
       setTimeout(() => {
