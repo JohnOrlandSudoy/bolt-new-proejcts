@@ -8,7 +8,8 @@ import {
   UserProfile, 
   loadProfileAtom, 
   saveProfileAtom,
-  profileLoadingAtom 
+  profileLoadingAtom,
+  updateProfileAtom
 } from "@/store/profile";
 import { screenAtom } from "@/store/screens";
 import { useAuthContext } from "@/components/AuthProvider";
@@ -247,9 +248,16 @@ const PhotoUpload = ({
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
+        console.log('Image uploaded, size:', result.length);
         onPhotoChange(result);
       };
       reader.readAsDataURL(file);
@@ -257,6 +265,7 @@ const PhotoUpload = ({
   };
 
   const handleRemovePhoto = () => {
+    console.log('Removing photo');
     onPhotoChange("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -309,7 +318,7 @@ const PhotoUpload = ({
             </div>
             <div className="text-center">
               <p className="text-white font-medium text-sm">Upload {label}</p>
-              <p className="text-slate-400 text-xs">Click to browse files</p>
+              <p className="text-slate-400 text-xs">Click to browse files (max 5MB)</p>
             </div>
           </div>
         )}
@@ -338,13 +347,17 @@ const InterestTags = ({
 
   const addInterest = () => {
     if (newInterest.trim() && !interests.includes(newInterest.trim())) {
-      onInterestsChange([...interests, newInterest.trim()]);
+      const updatedInterests = [...interests, newInterest.trim()];
+      console.log('Adding interest:', newInterest.trim());
+      onInterestsChange(updatedInterests);
       setNewInterest("");
     }
   };
 
   const removeInterest = (interest: string) => {
-    onInterestsChange(interests.filter(i => i !== interest));
+    const updatedInterests = interests.filter(i => i !== interest);
+    console.log('Removing interest:', interest);
+    onInterestsChange(updatedInterests);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -512,7 +525,7 @@ export const Profile: React.FC = () => {
   // Load profile data when component mounts
   useEffect(() => {
     if (user?.id && isAuthenticated) {
-      console.log('Loading profile for user:', user.id);
+      console.log('Component mounted, loading profile for user:', user.id);
       const store = getDefaultStore();
       store.set(loadProfileAtom, user.id);
     }
@@ -634,7 +647,9 @@ export const Profile: React.FC = () => {
 
   const updateProfile = (updates: Partial<UserProfile>) => {
     console.log('Updating profile with:', updates);
-    setProfile(prev => ({ ...prev, ...updates }));
+    const store = getDefaultStore();
+    store.set(updateProfileAtom, updates);
+    
     // Clear related errors
     Object.keys(updates).forEach(key => {
       if (errors[key]) {
@@ -900,6 +915,7 @@ export const Profile: React.FC = () => {
                 <p>• All fields are optional except your name</p>
                 <p>• Your profile helps personalize AI conversations</p>
                 <p>• Data is stored securely in the cloud and locally</p>
+                <p>• Changes are saved automatically as you type</p>
               </div>
             </div>
             <div className="flex gap-3 w-full lg:w-auto">

@@ -26,9 +26,12 @@ const getInitialProfile = (): UserProfile => {
   const savedProfile = localStorage.getItem('user-profile');
   if (savedProfile) {
     try {
-      return JSON.parse(savedProfile);
+      const parsed = JSON.parse(savedProfile);
+      console.log('Loaded profile from localStorage:', parsed);
+      return parsed;
     } catch (error) {
       console.error('Error parsing saved profile:', error);
+      localStorage.removeItem('user-profile'); // Clear corrupted data
     }
   }
   return {
@@ -54,10 +57,20 @@ export const isProfileCompleteAtom = atom((get) => {
 // Atom for loading state
 export const profileLoadingAtom = atom<boolean>(false);
 
+// Atom to track if profile has been loaded from database
+export const profileLoadedFromDbAtom = atom<boolean>(false);
+
 // Action atom to load profile from Supabase
 export const loadProfileAtom = atom(
   null,
   async (get, set, userId: string) => {
+    // Don't reload if already loaded from DB
+    const alreadyLoaded = get(profileLoadedFromDbAtom);
+    if (alreadyLoaded) {
+      console.log('Profile already loaded from database, skipping...');
+      return;
+    }
+
     set(profileLoadingAtom, true);
     try {
       console.log('Loading profile for user:', userId);
@@ -111,25 +124,22 @@ export const loadProfileAtom = atom(
           updatedAt: profileData.updated_at,
         };
         
-        console.log('Setting profile:', userProfile);
+        console.log('Setting profile from database:', userProfile);
         set(userProfileAtom, userProfile);
+        set(profileLoadedFromDbAtom, true);
         
         // Also save to localStorage as backup
         localStorage.setItem('user-profile', JSON.stringify(userProfile));
+        console.log('Profile saved to localStorage as backup');
       } else {
-        console.log('No profile data found, keeping current profile');
+        console.log('No profile data found in database, keeping current profile');
+        // Mark as loaded even if no data found to prevent repeated attempts
+        set(profileLoadedFromDbAtom, true);
       }
     } catch (error) {
-      console.error('Error loading profile:', error);
-      // Fall back to localStorage if Supabase fails
-      const savedProfile = localStorage.getItem('user-profile');
-      if (savedProfile) {
-        try {
-          set(userProfileAtom, JSON.parse(savedProfile));
-        } catch (parseError) {
-          console.error('Error parsing localStorage profile:', parseError);
-        }
-      }
+      console.error('Error loading profile from Supabase:', error);
+      // Don't mark as loaded if there was an error, so we can retry
+      console.log('Keeping localStorage profile due to database error');
     } finally {
       set(profileLoadingAtom, false);
     }
@@ -237,9 +247,11 @@ export const saveProfileAtom = atom(
       };
       
       set(userProfileAtom, updatedProfile);
+      set(profileLoadedFromDbAtom, true);
       
       // Also save to localStorage as backup
       localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
+      console.log('Profile updated in localStorage');
       
       set(profileSavedAtom, true);
       
@@ -260,6 +272,7 @@ export const saveProfileAtom = atom(
       };
       
       localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
+      console.log('Profile saved to localStorage as fallback');
       set(profileSavedAtom, true);
       
       setTimeout(() => {
@@ -270,5 +283,24 @@ export const saveProfileAtom = atom(
     } finally {
       set(profileLoadingAtom, false);
     }
+  }
+);
+
+// Action atom to update profile and persist immediately
+export const updateProfileAtom = atom(
+  null,
+  (get, set, updates: Partial<UserProfile>) => {
+    const currentProfile = get(userProfileAtom);
+    const updatedProfile = { ...currentProfile, ...updates };
+    
+    console.log('Updating profile:', updates);
+    console.log('New profile state:', updatedProfile);
+    
+    // Update the atom
+    set(userProfileAtom, updatedProfile);
+    
+    // Immediately save to localStorage for persistence
+    localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
+    console.log('Profile changes saved to localStorage');
   }
 );

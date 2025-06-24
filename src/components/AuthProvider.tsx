@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { getDefaultStore } from 'jotai';
+import { loadProfileAtom } from '@/store/profile';
 
 interface AuthContextType {
   user: User | null;
@@ -41,6 +43,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
           setSession(session);
           setUser(session?.user ?? null);
+          
+          // Load profile data if user is authenticated
+          if (session?.user?.id) {
+            console.log('User authenticated, loading profile...');
+            const store = getDefaultStore();
+            store.set(loadProfileAtom, session.user.id);
+          }
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
@@ -61,10 +70,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Only handle profile creation for successful sign-ins
+        // Handle profile operations for authenticated users
         if (event === 'SIGNED_IN' && session?.user) {
           // Don't await this - let it happen in background
           createOrUpdateProfile(session.user).catch(console.error);
+          
+          // Load profile data
+          console.log('User signed in, loading profile...');
+          const store = getDefaultStore();
+          store.set(loadProfileAtom, session.user.id);
+        }
+        
+        // Clear profile data on sign out
+        if (event === 'SIGNED_OUT') {
+          console.log('User signed out, clearing profile data...');
+          localStorage.removeItem('user-profile');
         }
         
         // Ensure loading is false after any auth state change
@@ -160,6 +180,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Immediately clear local state for instant UI feedback
       setUser(null);
       setSession(null);
+      
+      // Clear profile data
+      localStorage.removeItem('user-profile');
       
       // Then perform the actual sign out in background
       const { error } = await supabase.auth.signOut();
