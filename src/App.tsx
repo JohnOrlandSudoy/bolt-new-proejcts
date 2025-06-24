@@ -14,6 +14,7 @@ import {
   Settings,
   Auth,
   Profile,
+  Chat,
 } from "./screens";
 
 function App() {
@@ -43,16 +44,20 @@ function App() {
         return <Auth />;
       case "profile":
         return <Profile />;
+      case "chat":
+        return <Chat />;
       default:
         return <Home />;
     }
   };
 
+  const showHeaderFooter = !["introLoading", "home", "auth", "profile", "chat"].includes(currentScreen);
+
   return (
     <main className="flex h-svh flex-col items-center justify-between gap-3 p-5 sm:gap-4 lg:p-8 bg-black">
-      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && currentScreen !== "profile" && <Header />}
+      {showHeaderFooter && <Header />}
       {renderScreen()}
-      {currentScreen !== "introLoading" && currentScreen !== "home" && currentScreen !== "auth" && currentScreen !== "profile" && <Footer />}
+      {showHeaderFooter && <Footer />}
     </main>
   );
 }

@@ -11,3 +11,4 @@ export { ConversationError } from "./ConversationError";
 export { Settings } from "./Settings";
 export { Auth } from "./Auth";
 export { Profile } from "./Profile";
+export { Chat } from "./Chat";

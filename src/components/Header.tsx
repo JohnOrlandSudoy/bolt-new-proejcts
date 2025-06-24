@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Button } from "./ui/button";
-import { Settings, Check, User, LogOut, UserCircle } from "lucide-react";
+import { Settings, Check, User, LogOut, UserCircle, MessageCircle } from "lucide-react";
 import { useAtom } from "jotai";
 import { screenAtom } from "@/store/screens";
 import { conversationAtom } from "@/store/conversation";
@@ -146,6 +146,12 @@ export const Header = memo(() => {
     }
   };
 
+  const handleChat = () => {
+    if (!conversation) {
+      setScreenState({ currentScreen: "chat" });
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       // Immediately redirect to home for instant feedback
@@ -166,6 +172,16 @@ export const Header = memo(() => {
       <div className="flex items-center gap-4">
         {/* User Info (if authenticated) */}
         {user && <HeaderUserInfo user={user} onSignOut={handleSignOut} />}
+        
+        {/* Chat Button */}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleChat}
+          className="relative size-12 border-slate-700/50 bg-slate-900/50 hover:bg-slate-800/70 backdrop-blur-sm transition-all duration-200 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/20"
+        >
+          <MessageCircle className="size-5 text-slate-300 hover:text-cyan-400 transition-colors" />
+        </Button>
         
         {/* Profile Button */}
         <div className="relative">

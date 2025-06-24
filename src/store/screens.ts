@@ -15,7 +15,8 @@ export type Screen =
   | "finalScreen"
   | "sessionEnded"
   | "auth"
-  | "profile";
+  | "profile"
+  | "chat";
 
 interface ScreenState {
   currentScreen: Screen;
