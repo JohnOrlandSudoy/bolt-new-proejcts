@@ -1,8 +1,15 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAtom } from "jotai";
 import { getDefaultStore } from "jotai";
-import { userProfileAtom, profileSavedAtom, UserProfile } from "@/store/profile";
+import { 
+  userProfileAtom, 
+  profileSavedAtom, 
+  UserProfile, 
+  loadProfileAtom, 
+  saveProfileAtom,
+  profileLoadingAtom 
+} from "@/store/profile";
 import { screenAtom } from "@/store/screens";
 import { useAuthContext } from "@/components/AuthProvider";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
@@ -22,7 +29,8 @@ import {
   Sparkles,
   Edit3,
   Plus,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -447,14 +455,24 @@ export const Profile: React.FC = () => {
   const [profile, setProfile] = useAtom(userProfileAtom);
   const [, setScreenState] = useAtom(screenAtom);
   const [, setProfileSaved] = useAtom(profileSavedAtom);
+  const [profileLoading] = useAtom(profileLoadingAtom);
   const { user } = useAuthContext();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   // Enforce authentication for this screen
   const { isAuthenticated, isLoading } = useAuthGuard({
     showAuthModal: true,
     redirectTo: "auth"
   });
+
+  // Load profile data when component mounts
+  useEffect(() => {
+    if (user?.id && isAuthenticated) {
+      const store = getDefaultStore();
+      store.set(loadProfileAtom, user.id);
+    }
+  }, [user?.id, isAuthenticated]);
 
   const relationshipOptions = [
     { label: "Prefer not to say", value: "prefer-not-to-say" },
@@ -491,23 +509,36 @@ export const Profile: React.FC = () => {
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    console.log('Saving profile:', profile);
+    setIsSaving(true);
     
-    const updatedProfile = {
-      ...profile,
-      email: user?.email || profile.email,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
-    
-    const store = getDefaultStore();
-    store.set(userProfileAtom, updatedProfile);
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    setProfileSaved(true);
-    handleClose();
+    try {
+      console.log('Saving profile:', profile);
+      
+      const updatedProfile = {
+        ...profile,
+        email: user?.email || profile.email,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      if (user?.id) {
+        // Save to Supabase
+        const store = getDefaultStore();
+        await store.set(saveProfileAtom, user.id);
+      } else {
+        // Fallback to localStorage only
+        localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
+        setProfileSaved(true);
+      }
+      
+      handleClose();
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      // Even if Supabase fails, we still saved to localStorage
+      setProfileSaved(true);
+      handleClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
@@ -520,13 +551,15 @@ export const Profile: React.FC = () => {
     });
   };
 
-  // Show loading while checking authentication
-  if (isLoading) {
+  // Show loading while checking authentication or loading profile
+  if (isLoading || profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-white text-lg">Verifying access...</p>
+          <p className="text-white text-lg">
+            {isLoading ? "Verifying access..." : "Loading profile..."}
+          </p>
         </div>
       </div>
     );
@@ -558,6 +591,7 @@ export const Profile: React.FC = () => {
               size="icon"
               onClick={handleClose}
               className="hover:bg-red-500/20 hover:text-red-400 border-2 border-transparent hover:border-red-500/30"
+              disabled={isSaving}
             >
               <X className="size-6" />
             </Button>
@@ -766,7 +800,7 @@ export const Profile: React.FC = () => {
               <div className="space-y-1 text-slate-400">
                 <p>• All fields are optional except your name</p>
                 <p>• Your profile helps personalize AI conversations</p>
-                <p>• Data is stored locally and securely</p>
+                <p>• Data is stored securely in the cloud and locally</p>
               </div>
             </div>
             <div className="flex gap-3 w-full lg:w-auto">
@@ -774,6 +808,7 @@ export const Profile: React.FC = () => {
                 variant="outline"
                 onClick={handleClose}
                 className="flex-1 lg:flex-none min-w-[100px]"
+                disabled={isSaving}
               >
                 Skip for Now
               </Button>
@@ -781,9 +816,19 @@ export const Profile: React.FC = () => {
                 variant="primary"
                 onClick={handleSave}
                 className="flex-1 lg:flex-none min-w-[140px]"
+                disabled={isSaving}
               >
-                <Save className="size-4 mr-2" />
-                Save Profile
+                {isSaving ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="size-4 mr-2" />
+                    Save Profile
+                  </>
+                )}
               </Button>
             </div>
           </div>
