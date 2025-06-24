@@ -156,8 +156,8 @@ const Input = React.forwardRef<
 });
 Input.displayName = "Input";
 
-// User Profile Modal Component
-const UserProfileModal = ({ 
+// Profile View Modal Component
+const ProfileViewModal = ({ 
   user, 
   isOpen, 
   onClose 
@@ -168,9 +168,55 @@ const UserProfileModal = ({
 }) => {
   if (!isOpen || !user) return null;
 
+  const getStatusColor = () => {
+    switch (user.presenceStatus) {
+      case 'online':
+        return 'bg-green-500 shadow-green-500/50';
+      case 'away':
+        return 'bg-yellow-500 shadow-yellow-500/50';
+      case 'busy':
+        return 'bg-red-500 shadow-red-500/50';
+      default:
+        return 'bg-slate-500';
+    }
+  };
+
+  const getConnectionStatusBadge = () => {
+    switch (user.connectionStatus) {
+      case 'accepted':
+        return (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/30">
+            <UserCheck className="size-4 text-green-400" />
+            <span className="text-green-300 text-sm font-medium">Connected</span>
+          </div>
+        );
+      case 'pending':
+        return (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/20 border border-yellow-500/30">
+            <Clock className="size-4 text-yellow-400" />
+            <span className="text-yellow-300 text-sm font-medium">Pending</span>
+          </div>
+        );
+      case 'blocked':
+        return (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/20 border border-red-500/30">
+            <UserX className="size-4 text-red-400" />
+            <span className="text-red-300 text-sm font-medium">Blocked</span>
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-500/20 border border-slate-500/30">
+            <User className="size-4 text-slate-400" />
+            <span className="text-slate-300 text-sm font-medium">Not Connected</span>
+          </div>
+        );
+    }
+  };
+
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -185,73 +231,84 @@ const UserProfileModal = ({
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-md bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl overflow-hidden"
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="relative w-full max-w-md bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl rounded-3xl overflow-hidden"
         >
-          {/* Header */}
-          <div className="relative p-6 border-b border-slate-700/50">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="absolute top-4 right-4 z-10"
-            >
-              <X className="size-5" />
-            </Button>
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 z-10 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-200"
+          >
+            <X className="size-5" />
+          </button>
+
+          {/* Cover Photo Area */}
+          <div className="relative h-32 bg-gradient-to-r from-cyan-500/20 to-purple-500/20">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             
-            {/* Cover Photo Area */}
-            <div className="h-24 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-xl mb-4" />
-            
-            {/* Profile Photo */}
-            <div className="absolute top-16 left-6">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white text-2xl font-bold border-4 border-slate-900">
-                {user.fullName.charAt(0).toUpperCase()}
+            {/* Profile Picture */}
+            <div className="absolute -bottom-12 left-6">
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white text-2xl font-bold border-4 border-slate-900 shadow-xl">
+                  {user.fullName.charAt(0).toUpperCase()}
+                </div>
+                {/* Status Indicator */}
+                <div className={cn(
+                  "absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-slate-900",
+                  getStatusColor()
+                )} />
               </div>
-            </div>
-            
-            {/* Status Indicator */}
-            <div className="absolute top-20 left-20">
-              <div className={cn(
-                "w-6 h-6 rounded-full border-2 border-slate-900",
-                user.presenceStatus === 'online' ? 'bg-green-500' :
-                user.presenceStatus === 'away' ? 'bg-yellow-500' :
-                user.presenceStatus === 'busy' ? 'bg-red-500' : 'bg-slate-500'
-              )} />
             </div>
           </div>
-          
+
           {/* Content */}
-          <div className="p-6 space-y-6">
-            {/* Basic Info */}
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-1">{user.fullName}</h2>
-              <p className="text-cyan-400 text-sm capitalize">{user.presenceStatus}</p>
+          <div className="pt-16 p-6 space-y-6">
+            {/* User Info */}
+            <div className="space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">{user.fullName}</h2>
+                  <p className="text-slate-400 text-sm">{user.email}</p>
+                </div>
+                {getConnectionStatusBadge()}
+              </div>
+
+              {/* Status */}
+              <div className="flex items-center gap-2 text-sm">
+                <div className={cn("w-2 h-2 rounded-full", getStatusColor())} />
+                <span className="text-slate-300 capitalize">{user.presenceStatus}</span>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-400">
+                  Last seen {new Date(user.lastSeen).toLocaleDateString()}
+                </span>
+              </div>
             </div>
-            
+
             {/* Bio */}
             {user.bio && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-300 mb-2">About</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{user.bio}</p>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-white">About</h3>
+                <p className="text-slate-300 text-sm leading-relaxed">{user.bio}</p>
               </div>
             )}
-            
+
             {/* Location */}
             {user.location && (
               <div className="flex items-center gap-2">
-                <MapPin className="size-4 text-slate-500" />
-                <span className="text-slate-400 text-sm">{user.location}</span>
+                <MapPin className="size-4 text-slate-400" />
+                <span className="text-slate-300 text-sm">{user.location}</span>
               </div>
             )}
-            
+
             {/* Interests */}
             {user.interests.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-300 mb-3">Interests</h3>
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-white">Interests</h3>
                 <div className="flex flex-wrap gap-2">
                   {user.interests.map((interest, index) => (
                     <span
                       key={index}
-                      className="px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-medium"
+                      className="px-3 py-1.5 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-medium border border-cyan-500/30"
                     >
                       {interest}
                     </span>
@@ -259,21 +316,17 @@ const UserProfileModal = ({
                 </div>
               </div>
             )}
-            
-            {/* Connection Status */}
-            <div className="pt-4 border-t border-slate-700/50">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-400">Connection Status</span>
-                <span className={cn(
-                  "px-2 py-1 rounded-full text-xs font-medium",
-                  user.connectionStatus === 'accepted' ? 'bg-green-500/20 text-green-300' :
-                  user.connectionStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
-                  user.connectionStatus === 'blocked' ? 'bg-red-500/20 text-red-300' :
-                  'bg-slate-500/20 text-slate-300'
-                )}>
-                  {user.connectionStatus === 'none' ? 'Not Connected' : user.connectionStatus}
-                </span>
-              </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4 border-t border-slate-700/50">
+              <Button variant="primary" className="flex-1">
+                <MessageSquare className="size-4 mr-2" />
+                Message
+              </Button>
+              <Button variant="outline" className="flex-1">
+                <UserPlus className="size-4 mr-2" />
+                Connect
+              </Button>
             </div>
           </div>
         </motion.div>
@@ -392,21 +445,21 @@ const ChatRoomItem = ({
   );
 };
 
-// Enhanced Message Component with better styling
+// Mobile-optimized Message Component with real-time animations - UPDATED: No background for text messages
 const MessageItem = ({ 
   message, 
   isOwn, 
   showSender = true,
   isMobile = false,
   isNew = false,
-  onProfileClick
+  onAvatarClick
 }: { 
   message: ChatMessage; 
   isOwn: boolean; 
   showSender?: boolean;
   isMobile?: boolean;
   isNew?: boolean;
-  onProfileClick?: (userId: string) => void;
+  onAvatarClick?: () => void;
 }) => {
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString([], { 
@@ -455,16 +508,16 @@ const MessageItem = ({
       className={cn(
         "flex mb-6 animate-message-slide-in",
         isOwn ? "flex-row-reverse" : "flex-row",
-        isMobile ? "gap-3 px-2" : "gap-4 px-4"
+        isMobile ? "gap-3 px-2" : "gap-4"
       )}
     >
       {/* Avatar */}
       {showSender && !isOwn && (
         <button
-          onClick={() => onProfileClick?.(message.senderId)}
+          onClick={onAvatarClick}
           className={cn(
             "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 hover:scale-110 transition-transform duration-200 cursor-pointer",
-            isMobile ? "w-10 h-10" : "w-9 h-9"
+            isMobile ? "w-10 h-10" : "w-10 h-10"
           )}
         >
           {message.senderName.charAt(0).toUpperCase()}
@@ -473,15 +526,15 @@ const MessageItem = ({
 
       {/* Message Content */}
       <div className={cn(
-        "space-y-1 flex flex-col",
-        isMobile ? "max-w-[80%]" : "max-w-[70%]",
+        "space-y-2",
+        isMobile ? "max-w-[85%]" : "max-w-[75%]",
         isOwn ? "items-end" : "items-start"
       )}>
         {/* Sender Name */}
         {showSender && !isOwn && (
           <button
-            onClick={() => onProfileClick?.(message.senderId)}
-            className="text-xs text-slate-400 font-medium px-1 hover:text-cyan-400 transition-colors cursor-pointer"
+            onClick={onAvatarClick}
+            className="text-sm text-slate-400 font-medium px-1 hover:text-cyan-400 transition-colors cursor-pointer"
           >
             {message.senderName}
           </button>
@@ -496,30 +549,36 @@ const MessageItem = ({
           </div>
         )}
 
-        {/* Message Bubble */}
+        {/* Message Content - UPDATED: No background, just white text */}
         <motion.div 
           initial={isNew ? { scale: 0.9 } : { scale: 1 }}
           animate={{ scale: 1 }}
           transition={{ duration: 0.2, delay: isNew ? 0.1 : 0 }}
           className={cn(
-            "rounded-2xl break-words message-bubble shadow-lg",
-            isMobile ? "px-4 py-3 text-base leading-relaxed" : "px-4 py-3 text-sm leading-relaxed",
-            isOwn 
-              ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white message-bubble-own shadow-cyan-500/25" 
-              : "bg-slate-800/80 text-white message-bubble-other border border-slate-700/50 backdrop-blur-sm"
+            "break-words message-bubble",
+            isMobile ? "py-2 text-base leading-relaxed" : "py-2 text-sm",
+            // Removed all background styling - just text now
+            isOwn ? "text-right" : "text-left"
           )}
         >
-          <div className="flex items-start gap-2">
-            {getMessageTypeIcon()}
-            <p className="break-words flex-1 whitespace-pre-wrap chat-message">
+          <div className={cn(
+            "flex items-start gap-2",
+            isOwn ? "justify-end" : "justify-start"
+          )}>
+            {!isOwn && getMessageTypeIcon()}
+            <p className={cn(
+              "break-words flex-1 whitespace-pre-wrap chat-message text-white",
+              isOwn ? "text-right" : "text-left"
+            )}>
               {message.content}
             </p>
+            {isOwn && getMessageTypeIcon()}
           </div>
         </motion.div>
 
-        {/* Message Time and Status */}
+        {/* Message Time */}
         <div className={cn(
-          "text-xs text-slate-500 flex items-center gap-2 px-1",
+          "text-xs text-slate-500 flex items-center gap-1 px-1",
           isOwn ? "justify-end" : "justify-start"
         )}>
           <span>{formatTime(message.createdAt)}</span>
@@ -548,7 +607,7 @@ const UserSearchItem = ({
   onConnect: () => void; 
   onMessage: () => void;
   onConnectionResponse?: (response: 'accepted' | 'declined') => void;
-  onProfileClick: (user: UserForCollaboration) => void;
+  onProfileClick?: () => void;
   isMobile?: boolean;
 }) => {
   const getStatusColor = () => {
@@ -630,9 +689,9 @@ const UserSearchItem = ({
       {/* Avatar */}
       <div className="relative flex-shrink-0">
         <button
-          onClick={() => onProfileClick(user)}
+          onClick={onProfileClick}
           className={cn(
-            "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold hover:scale-110 transition-transform duration-200",
+            "rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold hover:scale-110 transition-transform duration-200 cursor-pointer",
             isMobile ? "w-14 h-14 text-lg" : "w-12 h-12"
           )}
         >
@@ -648,9 +707,9 @@ const UserSearchItem = ({
       {/* User Info */}
       <div className="flex-1 min-w-0">
         <button
-          onClick={() => onProfileClick(user)}
+          onClick={onProfileClick}
           className={cn(
-            "font-semibold text-white truncate hover:text-cyan-400 transition-colors text-left",
+            "font-semibold text-white truncate hover:text-cyan-400 transition-colors cursor-pointer text-left block",
             isMobile ? "text-lg" : "text-base"
           )}
         >
@@ -1060,7 +1119,7 @@ export const Chat: React.FC = () => {
     }
   };
 
-  // Handle profile click
+  // Handle profile view
   const handleProfileClick = (user: UserForCollaboration) => {
     setSelectedUser(user);
     setIsProfileModalOpen(true);
@@ -1120,14 +1179,9 @@ export const Chat: React.FC = () => {
               )}>
                 Collaboration Hub
               </h1>
-              {/* Close button - Fixed positioning */}
+              {/* Close button for mobile sidebar */}
               {isMobile && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="flex-shrink-0"
-                >
+                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="flex-shrink-0">
                   <X className="size-5" />
                 </Button>
               )}
@@ -1270,7 +1324,7 @@ export const Chat: React.FC = () => {
                           user={user}
                           onConnect={() => handleConnectUser(user)}
                           onMessage={() => handleMessageUser(user)}
-                          onProfileClick={handleProfileClick}
+                          onProfileClick={() => handleProfileClick(user)}
                           isMobile={isMobile}
                         />
                       ))
@@ -1341,6 +1395,7 @@ export const Chat: React.FC = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsSidebarOpen(true)}
+                className="flex-shrink-0"
               >
                 <Menu className="size-5" />
               </Button>
@@ -1365,13 +1420,7 @@ export const Chat: React.FC = () => {
                 </div>
               )}
               
-              {/* Fixed close button positioning */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleClose}
-                className="flex-shrink-0"
-              >
+              <Button variant="ghost" size="icon" onClick={handleClose} className="flex-shrink-0">
                 <X className="size-5" />
               </Button>
             </div>
@@ -1417,7 +1466,7 @@ export const Chat: React.FC = () => {
               )}
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto py-4 hide-scrollbar">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="size-6 animate-spin text-cyan-400" />
@@ -1448,12 +1497,21 @@ export const Chat: React.FC = () => {
                         showSender={showSender}
                         isMobile={isMobile}
                         isNew={isNew}
-                        onProfileClick={(userId) => {
-                          // Find user in users list and show profile
-                          const user = users.find(u => u.userId === userId);
-                          if (user) {
-                            handleProfileClick(user);
-                          }
+                        onAvatarClick={() => {
+                          // Create a user object for profile viewing
+                          const user: UserForCollaboration = {
+                            userId: message.senderId,
+                            fullName: message.senderName,
+                            email: '',
+                            bio: '',
+                            profilePhoto: message.senderPhoto,
+                            location: '',
+                            interests: [],
+                            connectionStatus: 'none',
+                            lastSeen: message.createdAt,
+                            presenceStatus: 'offline'
+                          };
+                          handleProfileClick(user);
                         }}
                       />
                     );
@@ -1493,6 +1551,14 @@ export const Chat: React.FC = () => {
                         }
                       }}
                     />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      type="button"
+                      className="absolute right-1 top-1/2 -translate-y-1/2"
+                    >
+                      <Smile className="size-4" />
+                    </Button>
                   </div>
                   
                   {/* Send Button */}
@@ -1562,8 +1628,8 @@ export const Chat: React.FC = () => {
         </div>
       </div>
 
-      {/* User Profile Modal */}
-      <UserProfileModal
+      {/* Profile View Modal */}
+      <ProfileViewModal
         user={selectedUser}
         isOpen={isProfileModalOpen}
         onClose={() => {
