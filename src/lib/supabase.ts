@@ -164,7 +164,7 @@ export const validateEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-// Rate limiting helper
+// Rate limiting helper - with better error handling
 export const checkRateLimit = async (email: string): Promise<{ allowed: boolean; remainingAttempts: number }> => {
   const maxAttempts = parseInt(import.meta.env.VITE_MAX_LOGIN_ATTEMPTS || '5');
   const timeWindow = 15 * 60 * 1000; // 15 minutes
@@ -181,6 +181,7 @@ export const checkRateLimit = async (email: string): Promise<{ allowed: boolean;
 
     if (error) {
       console.error('Rate limit check error:', error);
+      // If table doesn't exist or other DB error, allow the attempt
       return { allowed: true, remainingAttempts: maxAttempts };
     }
 
@@ -193,11 +194,12 @@ export const checkRateLimit = async (email: string): Promise<{ allowed: boolean;
     };
   } catch (error) {
     console.error('Rate limit check error:', error);
+    // On any error, allow the attempt to proceed
     return { allowed: true, remainingAttempts: maxAttempts };
   }
 };
 
-// Log auth attempt
+// Log auth attempt - with better error handling
 export const logAuthAttempt = async (
   email: string, 
   attemptType: 'signin' | 'signup', 
@@ -215,6 +217,7 @@ export const logAuthAttempt = async (
       });
   } catch (error) {
     console.error('Failed to log auth attempt:', error);
+    // Don't throw error - logging failure shouldn't break auth flow
   }
 };
 
