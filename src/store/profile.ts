@@ -22,20 +22,9 @@ export interface UserProfile {
   updatedAt?: string;
 }
 
+// REMOVED localStorage dependency - only use empty initial state
 const getInitialProfile = (): UserProfile => {
-  const savedProfile = localStorage.getItem('user-profile');
-  if (savedProfile) {
-    try {
-      const parsed = JSON.parse(savedProfile);
-      console.log('📱 Loaded profile from localStorage:', parsed);
-      return parsed;
-    } catch (error) {
-      console.error('❌ Error parsing saved profile:', error);
-      localStorage.removeItem('user-profile'); // Clear corrupted data
-    }
-  }
-  
-  console.log('🆕 Creating new empty profile');
+  console.log('🆕 Creating empty profile - NO localStorage dependency');
   return {
     fullName: "",
     bio: "",
@@ -50,6 +39,7 @@ export const userProfileAtom = atom<UserProfile>(getInitialProfile());
 export const profileSavedAtom = atom<boolean>(false);
 export const profileLoadingAtom = atom<boolean>(false);
 export const profileLoadedFromDbAtom = atom<boolean>(false);
+export const dbConnectionStatusAtom = atom<'checking' | 'connected' | 'disconnected'>('checking');
 
 // Derived atom to check if profile is complete
 export const isProfileCompleteAtom = atom((get) => {
@@ -57,38 +47,54 @@ export const isProfileCompleteAtom = atom((get) => {
   return !!(profile.fullName && profile.bio);
 });
 
-// Action atom to load profile from Supabase with comprehensive debugging
+// Action atom to test database connection
+export const testDbConnectionAtom = atom(
+  null,
+  async (get, set) => {
+    console.log('🔍 Testing database connection...');
+    set(dbConnectionStatusAtom, 'checking');
+    
+    try {
+      const isConnected = await testDatabaseConnection();
+      const status = isConnected ? 'connected' : 'disconnected';
+      set(dbConnectionStatusAtom, status);
+      console.log(`📊 Database status: ${status}`);
+      return isConnected;
+    } catch (error) {
+      console.error('❌ Database connection test failed:', error);
+      set(dbConnectionStatusAtom, 'disconnected');
+      return false;
+    }
+  }
+);
+
+// Action atom to load profile from Supabase ONLY
 export const loadProfileAtom = atom(
   null,
   async (get, set, userId: string) => {
-    console.log('🔄 Starting profile load process...');
+    console.log('🔄 Loading profile from Supabase database ONLY...');
     console.log('👤 User ID:', userId);
     
-    // Don't reload if already loaded from DB
-    const alreadyLoaded = get(profileLoadedFromDbAtom);
-    if (alreadyLoaded) {
-      console.log('✅ Profile already loaded from database, skipping...');
-      return;
-    }
-
     set(profileLoadingAtom, true);
     
     try {
       // Test database connection first
       const dbConnected = await testDatabaseConnection();
+      set(dbConnectionStatusAtom, dbConnected ? 'connected' : 'disconnected');
+      
       if (!dbConnected) {
-        throw new Error('Database connection failed');
+        throw new Error('❌ Database connection failed - cannot load profile');
       }
       
       // Verify user authentication
       const user = await checkUserAuth();
       if (!user || user.id !== userId) {
-        throw new Error('User authentication mismatch');
+        throw new Error('❌ User authentication failed');
       }
       
-      console.log('🔍 Loading profile data from Supabase...');
+      console.log('🔍 Querying user_profiles table...');
       
-      // Load profile data with detailed logging
+      // Load profile data from Supabase
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -96,23 +102,24 @@ export const loadProfileAtom = atom(
         .single();
       
       console.log('📊 Profile query result:');
-      console.log('Data:', profileData);
-      console.log('Error:', profileError);
+      console.log('✅ Data:', profileData);
+      console.log('❌ Error:', profileError);
       
       if (profileError && profileError.code !== 'PGRST116') {
-        console.error('❌ Error loading profile:', profileError);
+        console.error('❌ Error loading profile from database:', profileError);
         throw profileError;
       }
       
-      // Load interests with detailed logging
+      // Load interests from Supabase
+      console.log('🎯 Querying user_interests table...');
       const { data: interestsData, error: interestsError } = await supabase
         .from('user_interests')
         .select('interest')
         .eq('user_id', userId);
       
-      console.log('🎯 Interests query result:');
-      console.log('Data:', interestsData);
-      console.log('Error:', interestsError);
+      console.log('📊 Interests query result:');
+      console.log('✅ Data:', interestsData);
+      console.log('❌ Error:', interestsError);
       
       if (interestsError) {
         console.error('⚠️ Error loading interests (non-fatal):', interestsError);
@@ -142,22 +149,19 @@ export const loadProfileAtom = atom(
           updatedAt: profileData.updated_at,
         };
         
-        console.log('✅ Successfully loaded profile from database:', userProfile);
+        console.log('✅ Successfully loaded profile from Supabase database:', userProfile);
         set(userProfileAtom, userProfile);
         set(profileLoadedFromDbAtom, true);
-        
-        // Save to localStorage as backup
-        localStorage.setItem('user-profile', JSON.stringify(userProfile));
-        console.log('💾 Profile backed up to localStorage');
       } else {
-        console.log('📭 No profile data found in database');
-        // Mark as loaded even if no data found to prevent repeated attempts
+        console.log('📭 No profile data found in database - using empty profile');
+        set(userProfileAtom, getInitialProfile());
         set(profileLoadedFromDbAtom, true);
       }
     } catch (error) {
       console.error('❌ Error loading profile from Supabase:', error);
-      console.log('📱 Keeping localStorage profile due to database error');
-      // Don't mark as loaded if there was an error, so we can retry
+      // Don't fall back to localStorage - keep empty profile
+      set(userProfileAtom, getInitialProfile());
+      throw error;
     } finally {
       set(profileLoadingAtom, false);
       console.log('🏁 Profile load process completed');
@@ -165,11 +169,11 @@ export const loadProfileAtom = atom(
   }
 );
 
-// Action atom to save profile to Supabase with comprehensive debugging
+// Action atom to save profile to Supabase ONLY
 export const saveProfileAtom = atom(
   null,
   async (get, set, userId: string) => {
-    console.log('💾 Starting profile save process...');
+    console.log('💾 Saving profile to Supabase database ONLY...');
     console.log('👤 User ID:', userId);
     
     set(profileLoadingAtom, true);
@@ -177,26 +181,28 @@ export const saveProfileAtom = atom(
     try {
       const profile = get(userProfileAtom);
       
-      console.log('📝 Current profile data to save:', profile);
+      console.log('📝 Profile data to save:', profile);
       
       // Test database connection first
       const dbConnected = await testDatabaseConnection();
+      set(dbConnectionStatusAtom, dbConnected ? 'connected' : 'disconnected');
+      
       if (!dbConnected) {
-        throw new Error('Database connection failed');
+        throw new Error('❌ Database connection failed - cannot save profile');
       }
       
       // Verify user authentication
       const user = await checkUserAuth();
       if (!user || user.id !== userId) {
-        throw new Error('User authentication mismatch');
+        throw new Error('❌ User authentication failed');
       }
       
       // Validate required fields
       if (!profile.fullName || profile.fullName.trim() === '') {
-        throw new Error('Full name is required');
+        throw new Error('❌ Full name is required');
       }
       
-      // Prepare profile data for Supabase with proper field mapping
+      // Prepare profile data for Supabase
       const profileData = {
         user_id: userId,
         email: profile.email || user.email || "",
@@ -214,9 +220,9 @@ export const saveProfileAtom = atom(
         phone: profile.phone || null,
       };
       
-      console.log('🔄 Upserting profile data:', profileData);
+      console.log('🔄 Upserting profile to Supabase database:', profileData);
       
-      // Upsert profile data with detailed error handling
+      // Upsert profile data to Supabase
       const { data: upsertedProfile, error: profileError } = await supabase
         .from('user_profiles')
         .upsert(profileData, {
@@ -227,11 +233,11 @@ export const saveProfileAtom = atom(
         .single();
       
       console.log('📊 Profile upsert result:');
-      console.log('Data:', upsertedProfile);
-      console.log('Error:', profileError);
+      console.log('✅ Data:', upsertedProfile);
+      console.log('❌ Error:', profileError);
       
       if (profileError) {
-        console.error('❌ Error upserting profile:', profileError);
+        console.error('❌ Error saving profile to database:', profileError);
         console.error('Error details:', {
           message: profileError.message,
           details: profileError.details,
@@ -242,34 +248,30 @@ export const saveProfileAtom = atom(
       }
       
       if (!upsertedProfile) {
-        throw new Error('Profile upsert returned no data');
+        throw new Error('❌ Profile upsert returned no data');
       }
       
-      console.log('✅ Profile upserted successfully:', upsertedProfile);
+      console.log('✅ Profile saved successfully to Supabase database!');
       
-      // Handle interests separately with detailed logging
+      // Handle interests separately
       if (profile.interests && profile.interests.length > 0) {
-        console.log('🎯 Saving interests:', profile.interests);
+        console.log('🎯 Saving interests to database:', profile.interests);
         
-        // First delete existing interests
+        // Delete existing interests
         const { error: deleteError } = await supabase
           .from('user_interests')
           .delete()
           .eq('user_id', userId);
         
-        console.log('🗑️ Delete existing interests result:', deleteError);
-        
         if (deleteError) {
-          console.error('⚠️ Error deleting existing interests (non-fatal):', deleteError);
+          console.error('⚠️ Error deleting existing interests:', deleteError);
         }
         
-        // Then insert new interests
+        // Insert new interests
         const interestsToInsert = profile.interests.map(interest => ({
           user_id: userId,
           interest: interest.trim()
         }));
-        
-        console.log('➕ Inserting interests:', interestsToInsert);
         
         const { data: insertedInterests, error: interestsError } = await supabase
           .from('user_interests')
@@ -277,30 +279,29 @@ export const saveProfileAtom = atom(
           .select();
         
         console.log('📊 Interests insert result:');
-        console.log('Data:', insertedInterests);
-        console.log('Error:', interestsError);
+        console.log('✅ Data:', insertedInterests);
+        console.log('❌ Error:', interestsError);
         
         if (interestsError) {
-          console.error('❌ Error inserting interests:', interestsError);
+          console.error('❌ Error saving interests:', interestsError);
           throw interestsError;
         }
         
-        console.log('✅ Interests saved successfully');
+        console.log('✅ Interests saved successfully to database!');
       } else {
-        console.log('🧹 Clearing all interests (none provided)');
+        console.log('🧹 Clearing all interests from database');
         
-        // Clear all interests if none provided
         const { error: deleteError } = await supabase
           .from('user_interests')
           .delete()
           .eq('user_id', userId);
         
         if (deleteError) {
-          console.error('⚠️ Error clearing interests (non-fatal):', deleteError);
+          console.error('⚠️ Error clearing interests:', deleteError);
         }
       }
       
-      console.log('🎉 Complete profile saved successfully to Supabase');
+      console.log('🎉 Complete profile saved successfully to Supabase database!');
       
       // Update the profile atom with the saved data
       const updatedProfile = {
@@ -313,11 +314,6 @@ export const saveProfileAtom = atom(
       
       set(userProfileAtom, updatedProfile);
       set(profileLoadedFromDbAtom, true);
-      
-      // Also save to localStorage as backup
-      localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
-      console.log('💾 Profile updated in localStorage');
-      
       set(profileSavedAtom, true);
       
       // Reset saved indicator after 3 seconds
@@ -327,29 +323,14 @@ export const saveProfileAtom = atom(
       
       return true;
     } catch (error) {
-      console.error('❌ Error saving profile to Supabase:', error);
+      console.error('❌ CRITICAL ERROR: Failed to save profile to Supabase database:', error);
       
-      // Provide detailed error information
       if (error instanceof Error) {
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
       }
       
-      // Fall back to localStorage only
-      const profile = get(userProfileAtom);
-      const updatedProfile = {
-        ...profile,
-        updatedAt: new Date().toISOString(),
-      };
-      
-      localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
-      console.log('💾 Profile saved to localStorage as fallback');
-      set(profileSavedAtom, true);
-      
-      setTimeout(() => {
-        set(profileSavedAtom, false);
-      }, 3000);
-      
+      // DO NOT fall back to localStorage - throw the error
       throw error;
     } finally {
       set(profileLoadingAtom, false);
@@ -358,7 +339,7 @@ export const saveProfileAtom = atom(
   }
 );
 
-// Action atom to update profile and persist immediately
+// Action atom to update profile (NO localStorage backup)
 export const updateProfileAtom = atom(
   null,
   (get, set, updates: Partial<UserProfile>) => {
@@ -368,12 +349,9 @@ export const updateProfileAtom = atom(
     console.log('🔄 Updating profile with:', updates);
     console.log('📝 New profile state:', updatedProfile);
     
-    // Update the atom
+    // Update the atom ONLY - NO localStorage
     set(userProfileAtom, updatedProfile);
-    
-    // Immediately save to localStorage for persistence
-    localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
-    console.log('💾 Profile changes saved to localStorage');
+    console.log('✅ Profile updated in memory only');
   }
 );
 
@@ -386,21 +364,10 @@ export const resetProfileAtom = atom(
     set(profileLoadedFromDbAtom, false);
     set(profileSavedAtom, false);
     set(profileLoadingAtom, false);
+    set(dbConnectionStatusAtom, 'checking');
     
-    // Clear localStorage
-    localStorage.removeItem('user-profile');
-    
-    // Reset to initial state
-    const initialProfile = {
-      fullName: "",
-      bio: "",
-      job: "",
-      fashion: "",
-      relationshipStatus: "prefer-not-to-say",
-      interests: [],
-    };
-    
-    set(userProfileAtom, initialProfile);
-    console.log('✅ Profile state reset completed');
+    // Reset to initial empty state - NO localStorage clearing needed
+    set(userProfileAtom, getInitialProfile());
+    console.log('✅ Profile state reset to empty - ready for database load');
   }
 );

@@ -48,9 +48,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSession(session);
           setUser(session?.user ?? null);
           
-          // Load profile data if user is authenticated
+          // Load profile data from Supabase if user is authenticated
           if (session?.user?.id) {
-            console.log('👤 User authenticated, loading profile...');
+            console.log('👤 User authenticated, loading profile from Supabase database...');
             const store = getDefaultStore();
             store.set(loadProfileAtom, session.user.id);
           }
@@ -80,8 +80,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Don't await this - let it happen in background
           createOrUpdateProfile(session.user).catch(console.error);
           
-          // Load profile data
-          console.log('👤 User signed in, loading profile...');
+          // Load profile data from Supabase database
+          console.log('👤 User signed in, loading profile from Supabase database...');
           const store = getDefaultStore();
           store.set(loadProfileAtom, session.user.id);
         }
@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const createOrUpdateProfile = async (user: User) => {
     try {
-      console.log('👤 Creating/updating profile for user:', user.id);
+      console.log('👤 Creating/updating basic profile for user:', user.id);
       const { error } = await supabase
         .from('profiles')
         .upsert({
@@ -119,9 +119,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
 
       if (error) {
-        console.error('❌ Error creating/updating profile:', error);
+        console.error('❌ Error creating/updating basic profile:', error);
       } else {
-        console.log('✅ Profile created/updated successfully');
+        console.log('✅ Basic profile created/updated successfully');
       }
     } catch (error) {
       console.error('❌ Error in createOrUpdateProfile:', error);
@@ -196,7 +196,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       setSession(null);
       
-      // Clear profile data
+      // Clear profile data - NO localStorage clearing needed
       const store = getDefaultStore();
       store.set(resetProfileAtom);
       

@@ -9,7 +9,9 @@ import {
   loadProfileAtom, 
   saveProfileAtom,
   profileLoadingAtom,
-  updateProfileAtom
+  updateProfileAtom,
+  dbConnectionStatusAtom,
+  testDbConnectionAtom
 } from "@/store/profile";
 import { screenAtom } from "@/store/screens";
 import { useAuthContext } from "@/components/AuthProvider";
@@ -36,10 +38,10 @@ import {
   AlertCircle,
   Database,
   Wifi,
-  WifiOff
+  WifiOff,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/utils";
-import { testDatabaseConnection, checkUserAuth } from "@/lib/supabase";
 
 // Enhanced Button Component
 const Button = React.forwardRef<
@@ -261,7 +263,7 @@ const PhotoUpload = ({
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        console.log('📸 Image uploaded, size:', result.length);
+        console.log('📸 Image uploaded for database save, size:', result.length);
         onPhotoChange(result);
       };
       reader.readAsDataURL(file);
@@ -269,7 +271,7 @@ const PhotoUpload = ({
   };
 
   const handleRemovePhoto = () => {
-    console.log('🗑️ Removing photo');
+    console.log('🗑️ Removing photo for database save');
     onPhotoChange("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -352,7 +354,7 @@ const InterestTags = ({
   const addInterest = () => {
     if (newInterest.trim() && !interests.includes(newInterest.trim())) {
       const updatedInterests = [...interests, newInterest.trim()];
-      console.log('➕ Adding interest:', newInterest.trim());
+      console.log('➕ Adding interest for database save:', newInterest.trim());
       onInterestsChange(updatedInterests);
       setNewInterest("");
     }
@@ -360,7 +362,7 @@ const InterestTags = ({
 
   const removeInterest = (interest: string) => {
     const updatedInterests = interests.filter(i => i !== interest);
-    console.log('➖ Removing interest:', interest);
+    console.log('➖ Removing interest for database save:', interest);
     onInterestsChange(updatedInterests);
   };
 
@@ -511,27 +513,16 @@ const StatusMessage = ({
 
 // Database Status Component
 const DatabaseStatus = () => {
-  const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
-  const [userStatus, setUserStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
+  const [dbStatus] = useAtom(dbConnectionStatusAtom);
+  const [, testConnection] = useAtom(testDbConnectionAtom);
 
-  useEffect(() => {
-    const checkStatus = async () => {
-      console.log('🔍 Checking database and user status...');
-      
-      // Check database connection
-      const dbConnected = await testDatabaseConnection();
-      setDbStatus(dbConnected ? 'connected' : 'disconnected');
-      
-      // Check user authentication
-      const user = await checkUserAuth();
-      setUserStatus(user ? 'authenticated' : 'unauthenticated');
-    };
-
-    checkStatus();
-  }, []);
+  const handleRefreshConnection = async () => {
+    console.log('🔄 Manually refreshing database connection...');
+    await testConnection();
+  };
 
   return (
-    <div className="flex items-center gap-4 text-xs">
+    <div className="flex items-center justify-between gap-4 text-xs">
       <div className="flex items-center gap-2">
         {dbStatus === 'checking' ? (
           <Loader2 className="size-3 animate-spin text-yellow-400" />
@@ -550,23 +541,17 @@ const DatabaseStatus = () => {
         </span>
       </div>
       
-      <div className="flex items-center gap-2">
-        {userStatus === 'checking' ? (
-          <Loader2 className="size-3 animate-spin text-yellow-400" />
-        ) : userStatus === 'authenticated' ? (
-          <Wifi className="size-3 text-emerald-400" />
-        ) : (
-          <WifiOff className="size-3 text-red-400" />
-        )}
-        <span className={cn(
-          "font-medium",
-          userStatus === 'authenticated' ? "text-emerald-400" : 
-          userStatus === 'unauthenticated' ? "text-red-400" : "text-yellow-400"
-        )}>
-          Auth: {userStatus === 'checking' ? 'Checking...' : 
-                userStatus === 'authenticated' ? 'Authenticated' : 'Not Authenticated'}
-        </span>
-      </div>
+      {dbStatus === 'disconnected' && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleRefreshConnection}
+          className="h-6 px-2 text-xs"
+        >
+          <RefreshCw className="size-3 mr-1" />
+          Retry
+        </Button>
+      )}
     </div>
   );
 };
@@ -576,6 +561,7 @@ export const Profile: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [, setProfileSaved] = useAtom(profileSavedAtom);
   const [profileLoading] = useAtom(profileLoadingAtom);
+  const [dbStatus] = useAtom(dbConnectionStatusAtom);
   const { user } = useAuthContext();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -590,11 +576,18 @@ export const Profile: React.FC = () => {
     redirectTo: "auth"
   });
 
-  // Load profile data when component mounts
+  // Load profile data when component mounts and test DB connection
   useEffect(() => {
     if (user?.id && isAuthenticated) {
-      console.log('🚀 Component mounted, loading profile for user:', user.id);
+      console.log('🚀 Profile component mounted - loading from Supabase database only');
+      console.log('👤 User ID:', user.id);
+      
       const store = getDefaultStore();
+      
+      // Test database connection first
+      store.set(testDbConnectionAtom);
+      
+      // Load profile from database
       store.set(loadProfileAtom, user.id);
     }
   }, [user?.id, isAuthenticated]);
@@ -632,7 +625,15 @@ export const Profile: React.FC = () => {
   };
 
   const handleSave = async () => {
-    console.log('💾 Save button clicked');
+    console.log('💾 Save to Supabase database button clicked');
+    
+    if (dbStatus !== 'connected') {
+      setSaveStatus({ 
+        type: "error", 
+        message: "❌ Database not connected. Please check your connection and try again." 
+      });
+      return;
+    }
     
     if (!validateForm()) {
       console.log('❌ Form validation failed');
@@ -644,10 +645,10 @@ export const Profile: React.FC = () => {
     }
 
     setIsSaving(true);
-    setSaveStatus({ type: "info", message: "Saving your profile to database..." });
+    setSaveStatus({ type: "info", message: "💾 Saving your profile to Supabase database..." });
     
     try {
-      console.log('🔄 Starting profile save process...');
+      console.log('🔄 Starting Supabase database save process...');
       console.log('📝 Current profile data:', profile);
       console.log('👤 User ID:', user?.id);
       console.log('📧 User email:', user?.email);
@@ -655,18 +656,6 @@ export const Profile: React.FC = () => {
       if (!user?.id) {
         throw new Error('User ID is required for saving to database');
       }
-      
-      // Ensure we have the user's email and required data
-      const updatedProfile = {
-        ...profile,
-        email: user?.email || profile.email || "",
-        updatedAt: new Date().toISOString(),
-      };
-      
-      console.log('📋 Updated profile data:', updatedProfile);
-      
-      // Update the profile atom first
-      setProfile(updatedProfile);
       
       console.log('💾 Attempting to save to Supabase database...');
       
@@ -678,7 +667,7 @@ export const Profile: React.FC = () => {
       
       setSaveStatus({ 
         type: "success", 
-        message: "✅ Profile saved successfully to database! Data will persist on reload." 
+        message: "✅ Profile saved successfully to Supabase database! Data will persist on reload." 
       });
       
       // Close after a brief delay to show success message
@@ -687,10 +676,10 @@ export const Profile: React.FC = () => {
       }, 2000);
       
     } catch (error) {
-      console.error('❌ Error saving profile:', error);
+      console.error('❌ CRITICAL ERROR: Failed to save profile to Supabase database:', error);
       
       // Provide detailed error information
-      let errorMessage = "Failed to save to database. ";
+      let errorMessage = "Failed to save to Supabase database. ";
       
       if (error instanceof Error) {
         console.error('Error details:', {
@@ -702,32 +691,18 @@ export const Profile: React.FC = () => {
         errorMessage += "Unknown error occurred.";
       }
       
-      // Even if Supabase fails, save to localStorage
-      const updatedProfile = {
-        ...profile,
-        email: user?.email || profile.email || "",
-        updatedAt: new Date().toISOString(),
-      };
-      
-      localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
-      setProfileSaved(true);
-      
       setSaveStatus({ 
-        type: "warning", 
-        message: `⚠️ Saved locally only. Database error: ${errorMessage}` 
+        type: "error", 
+        message: `❌ Database save failed: ${errorMessage}` 
       });
       
-      // Still close after showing error
-      setTimeout(() => {
-        handleClose();
-      }, 3000);
     } finally {
       setIsSaving(false);
     }
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
-    console.log('🔄 Updating profile with:', updates);
+    console.log('🔄 Updating profile in memory (will save to database on Save button):', updates);
     const store = getDefaultStore();
     store.set(updateProfileAtom, updates);
     
@@ -746,7 +721,7 @@ export const Profile: React.FC = () => {
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-white text-lg">
-            {isLoading ? "Verifying access..." : "Loading profile from database..."}
+            {isLoading ? "Verifying access..." : "Loading profile from Supabase database..."}
           </p>
           <DatabaseStatus />
         </div>
@@ -772,7 +747,7 @@ export const Profile: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white mb-1">Create Your Profile</h1>
-                <p className="text-sm text-slate-300">Tell us about yourself to personalize your AI experience</p>
+                <p className="text-sm text-slate-300">Save your data to Supabase database - NO localStorage</p>
                 <DatabaseStatus />
               </div>
             </div>
@@ -801,7 +776,7 @@ export const Profile: React.FC = () => {
           {/* Photos Section */}
           <ProfileSection
             title="Photos"
-            description="Add photos to personalize your profile"
+            description="Add photos to personalize your profile (saved to Supabase database)"
             icon={<Camera />}
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -825,7 +800,7 @@ export const Profile: React.FC = () => {
           {/* Basic Information */}
           <ProfileSection
             title="Basic Information"
-            description="Essential details about yourself"
+            description="Essential details about yourself (saved to Supabase database)"
             icon={<User />}
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -894,7 +869,7 @@ export const Profile: React.FC = () => {
           {/* Professional & Lifestyle */}
           <ProfileSection
             title="Professional & Lifestyle"
-            description="Your work and style preferences"
+            description="Your work and style preferences (saved to Supabase database)"
             icon={<Briefcase />}
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -959,7 +934,7 @@ export const Profile: React.FC = () => {
           {/* Interests & Contact */}
           <ProfileSection
             title="Interests & Contact"
-            description="Your hobbies and how to reach you"
+            description="Your hobbies and how to reach you (saved to Supabase database)"
             icon={<Sparkles />}
           >
             <div className="space-y-4">
@@ -992,13 +967,13 @@ export const Profile: React.FC = () => {
             <div className="text-xs text-slate-300 leading-relaxed space-y-1">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-                <span className="font-bold text-white text-sm">Profile Tips</span>
+                <span className="font-bold text-white text-sm">Supabase Database Save</span>
               </div>
               <div className="space-y-1 text-slate-400">
-                <p>• All fields are optional except your name</p>
-                <p>• Your profile helps personalize AI conversations</p>
-                <p>• Data is saved to Supabase database and persists on reload</p>
-                <p>• Changes are automatically backed up locally as you type</p>
+                <p>• All data is saved ONLY to your Supabase database</p>
+                <p>• NO localStorage - data persists across devices and browsers</p>
+                <p>• Changes are saved when you click "Save to Database"</p>
+                <p>• Database connection required for saving</p>
               </div>
             </div>
             <div className="flex gap-3 w-full lg:w-auto">
@@ -1014,7 +989,7 @@ export const Profile: React.FC = () => {
                 variant="primary"
                 onClick={handleSave}
                 className="flex-1 lg:flex-none min-w-[140px]"
-                disabled={isSaving}
+                disabled={isSaving || dbStatus !== 'connected'}
               >
                 {isSaving ? (
                   <>
