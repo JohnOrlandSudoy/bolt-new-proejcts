@@ -697,7 +697,7 @@ export const Auth: React.FC<AuthScreenProps> = ({ onSuccess }) => {
                   Privacy Policy
                 </a>
               </p>
-            </div>
+            </motion.div>
           </div>
         </div>
       </motion.div>
