@@ -45,10 +45,12 @@ export interface UserForCollaboration {
 
 export interface UserConnection {
   id: string;
-  requesterId: string;
-  addresseeId: string;
-  status: 'pending' | 'accepted' | 'blocked' | 'declined';
+  otherUserId: string;
+  otherUserName: string;
+  otherUserPhoto?: string;
   connectionType: 'friend' | 'follow' | 'collaborate';
+  status: 'pending' | 'accepted' | 'blocked' | 'declined';
+  isRequester: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -77,9 +79,11 @@ export interface UserPresence {
 class ChatService {
   private realtimeChannels: Map<string, RealtimeChannel> = new Map();
 
-  // Get user's chat rooms
+  // Get user's chat rooms with error handling
   async getUserChatRooms(): Promise<ChatRoom[]> {
     try {
+      console.log('Fetching user chat rooms...');
+      
       const { data, error } = await supabase
         .rpc('get_user_chat_rooms');
 
@@ -87,6 +91,8 @@ class ChatService {
         console.error('Error fetching chat rooms:', error);
         throw new Error(`Failed to fetch chat rooms: ${error.message}`);
       }
+
+      console.log('Chat rooms data received:', data);
 
       return data?.map((room: any) => ({
         id: room.room_id,
@@ -99,7 +105,7 @@ class ChatService {
           createdAt: room.latest_message_created_at,
           senderName: room.latest_message_sender_name,
         } : undefined,
-        unreadCount: room.unread_count,
+        unreadCount: room.unread_count || 0,
         lastReadAt: room.last_read_at,
       })) || [];
     } catch (error) {
@@ -108,9 +114,11 @@ class ChatService {
     }
   }
 
-  // Create direct message room
+  // Create direct message room with improved error handling
   async createDirectMessageRoom(otherUserId: string): Promise<string> {
     try {
+      console.log('Creating DM room with user:', otherUserId);
+      
       const { data, error } = await supabase
         .rpc('create_direct_message_room', { other_user_id: otherUserId });
 
@@ -119,6 +127,7 @@ class ChatService {
         throw new Error(`Failed to create direct message room: ${error.message}`);
       }
 
+      console.log('DM room created:', data);
       return data;
     } catch (error) {
       console.error('Create DM room failed:', error);
@@ -129,6 +138,13 @@ class ChatService {
   // Create group chat room
   async createGroupChatRoom(name: string, description?: string, isPrivate: boolean = true): Promise<string> {
     try {
+      console.log('Creating group chat room:', { name, description, isPrivate });
+      
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        throw new Error('User not authenticated');
+      }
+
       const { data, error } = await supabase
         .from('chat_rooms')
         .insert({
@@ -136,7 +152,7 @@ class ChatService {
           description,
           type: 'group',
           is_private: isPrivate,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
+          created_by: user.user.id,
         })
         .select('id')
         .single();
@@ -151,10 +167,11 @@ class ChatService {
         .from('chat_participants')
         .insert({
           room_id: data.id,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: user.user.id,
           role: 'owner',
         });
 
+      console.log('Group chat room created:', data.id);
       return data.id;
     } catch (error) {
       console.error('Create group room failed:', error);
@@ -162,9 +179,11 @@ class ChatService {
     }
   }
 
-  // Get room messages
+  // Get room messages with improved error handling
   async getRoomMessages(roomId: string, limit: number = 50, offset: number = 0): Promise<ChatMessage[]> {
     try {
+      console.log('Fetching messages for room:', roomId);
+      
       const { data, error } = await supabase
         .rpc('get_room_messages', {
           room_id_param: roomId,
@@ -176,6 +195,8 @@ class ChatService {
         console.error('Error fetching messages:', error);
         throw new Error(`Failed to fetch messages: ${error.message}`);
       }
+
+      console.log('Messages data received:', data?.length || 0, 'messages');
 
       return data?.map((msg: any) => ({
         id: msg.message_id,
@@ -196,7 +217,7 @@ class ChatService {
     }
   }
 
-  // Send message
+  // Send message with improved error handling
   async sendMessage(
     roomId: string,
     content: string,
@@ -205,13 +226,20 @@ class ChatService {
     metadata?: any
   ): Promise<string> {
     try {
+      console.log('Sending message to room:', roomId);
+      
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        throw new Error('User not authenticated');
+      }
+
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           room_id: roomId,
           content,
           message_type: messageType,
-          sender_id: (await supabase.auth.getUser()).data.user?.id,
+          sender_id: user.user.id,
           reply_to: replyTo,
           metadata: metadata || {},
         })
@@ -223,6 +251,7 @@ class ChatService {
         throw new Error(`Failed to send message: ${error.message}`);
       }
 
+      console.log('Message sent:', data.id);
       return data.id;
     } catch (error) {
       console.error('Send message failed:', error);
@@ -230,9 +259,11 @@ class ChatService {
     }
   }
 
-  // Search users for collaboration
+  // Search users for collaboration with improved error handling
   async searchUsersForCollaboration(searchTerm: string = '', limit: number = 20): Promise<UserForCollaboration[]> {
     try {
+      console.log('Searching users for collaboration:', { searchTerm, limit });
+      
       const { data, error } = await supabase
         .rpc('search_users_for_collaboration', {
           search_term: searchTerm,
@@ -244,6 +275,8 @@ class ChatService {
         throw new Error(`Failed to search users: ${error.message}`);
       }
 
+      console.log('User search results:', data?.length || 0, 'users found');
+
       return data?.map((user: any) => ({
         userId: user.user_id,
         fullName: user.full_name,
@@ -252,9 +285,9 @@ class ChatService {
         profilePhoto: user.profile_photo,
         location: user.location,
         interests: user.interests || [],
-        connectionStatus: user.connection_status,
+        connectionStatus: user.connection_status || 'none',
         lastSeen: user.last_seen,
-        presenceStatus: user.presence_status,
+        presenceStatus: user.presence_status || 'offline',
       })) || [];
     } catch (error) {
       console.error('Search users failed:', error);
@@ -262,9 +295,11 @@ class ChatService {
     }
   }
 
-  // Send connection request
+  // Send connection request with improved error handling
   async sendConnectionRequest(userId: string, type: 'friend' | 'follow' | 'collaborate' = 'friend'): Promise<string> {
     try {
+      console.log('Sending connection request:', { userId, type });
+      
       const { data, error } = await supabase
         .rpc('send_connection_request', {
           addressee_id_param: userId,
@@ -276,6 +311,7 @@ class ChatService {
         throw new Error(`Failed to send connection request: ${error.message}`);
       }
 
+      console.log('Connection request sent:', data);
       return data;
     } catch (error) {
       console.error('Send connection request failed:', error);
@@ -286,6 +322,8 @@ class ChatService {
   // Respond to connection request
   async respondToConnectionRequest(connectionId: string, response: 'accepted' | 'declined' | 'blocked'): Promise<void> {
     try {
+      console.log('Responding to connection request:', { connectionId, response });
+      
       const { error } = await supabase
         .rpc('respond_to_connection_request', {
           connection_id_param: connectionId,
@@ -296,6 +334,8 @@ class ChatService {
         console.error('Error responding to connection request:', error);
         throw new Error(`Failed to respond to connection request: ${error.message}`);
       }
+
+      console.log('Connection request response sent');
     } catch (error) {
       console.error('Respond to connection request failed:', error);
       throw error;
@@ -303,33 +343,30 @@ class ChatService {
   }
 
   // Get user connections
-  async getUserConnections(): Promise<UserConnection[]> {
+  async getUserConnections(statusFilter?: string): Promise<UserConnection[]> {
     try {
+      console.log('Fetching user connections:', { statusFilter });
+      
       const { data, error } = await supabase
-        .from('user_connections')
-        .select(`
-          id,
-          requester_id,
-          addressee_id,
-          status,
-          connection_type,
-          created_at,
-          updated_at
-        `)
-        .or(`requester_id.eq.${(await supabase.auth.getUser()).data.user?.id},addressee_id.eq.${(await supabase.auth.getUser()).data.user?.id}`)
-        .order('created_at', { ascending: false });
+        .rpc('get_user_connections', {
+          status_filter: statusFilter,
+        });
 
       if (error) {
         console.error('Error fetching connections:', error);
         throw new Error(`Failed to fetch connections: ${error.message}`);
       }
 
+      console.log('User connections:', data?.length || 0, 'connections');
+
       return data?.map((conn: any) => ({
-        id: conn.id,
-        requesterId: conn.requester_id,
-        addresseeId: conn.addressee_id,
-        status: conn.status,
+        id: conn.connection_id,
+        otherUserId: conn.other_user_id,
+        otherUserName: conn.other_user_name,
+        otherUserPhoto: conn.other_user_photo,
         connectionType: conn.connection_type,
+        status: conn.status,
+        isRequester: conn.is_requester,
         createdAt: conn.created_at,
         updatedAt: conn.updated_at,
       })) || [];
@@ -358,87 +395,22 @@ class ChatService {
     }
   }
 
-  // Create collaboration session
-  async createCollaborationSession(
-    roomId: string,
-    title: string,
-    description?: string,
-    sessionType: 'general' | 'coding' | 'design' | 'brainstorm' | 'meeting' = 'general'
-  ): Promise<string> {
-    try {
-      const { data, error } = await supabase
-        .rpc('create_collaboration_session', {
-          room_id_param: roomId,
-          title_param: title,
-          description_param: description || '',
-          session_type_param: sessionType,
-        });
-
-      if (error) {
-        console.error('Error creating collaboration session:', error);
-        throw new Error(`Failed to create collaboration session: ${error.message}`);
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Create collaboration session failed:', error);
-      throw error;
-    }
-  }
-
-  // Join room
-  async joinRoom(roomId: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('chat_participants')
-        .insert({
-          room_id: roomId,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
-          role: 'member',
-        });
-
-      if (error) {
-        console.error('Error joining room:', error);
-        throw new Error(`Failed to join room: ${error.message}`);
-      }
-    } catch (error) {
-      console.error('Join room failed:', error);
-      throw error;
-    }
-  }
-
-  // Leave room
-  async leaveRoom(roomId: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('chat_participants')
-        .delete()
-        .eq('room_id', roomId)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
-
-      if (error) {
-        console.error('Error leaving room:', error);
-        throw new Error(`Failed to leave room: ${error.message}`);
-      }
-    } catch (error) {
-      console.error('Leave room failed:', error);
-      throw error;
-    }
-  }
-
   // Mark messages as read
   async markMessagesAsRead(roomId: string): Promise<void> {
     try {
+      console.log('Marking messages as read for room:', roomId);
+      
       const { error } = await supabase
-        .from('chat_participants')
-        .update({ last_read_at: new Date().toISOString() })
-        .eq('room_id', roomId)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        .rpc('mark_messages_as_read', {
+          room_id_param: roomId,
+        });
 
       if (error) {
         console.error('Error marking messages as read:', error);
         throw new Error(`Failed to mark messages as read: ${error.message}`);
       }
+
+      console.log('Messages marked as read');
     } catch (error) {
       console.error('Mark messages as read failed:', error);
       throw error;
@@ -452,6 +424,8 @@ class ChatService {
     onTyping?: (userId: string, isTyping: boolean) => void;
   }): () => void {
     const channelName = `room:${roomId}`;
+    
+    console.log('Subscribing to room:', roomId);
     
     // Remove existing channel if it exists
     if (this.realtimeChannels.has(channelName)) {
@@ -470,30 +444,36 @@ class ChatService {
           filter: `room_id=eq.${roomId}`,
         },
         async (payload) => {
+          console.log('New message received:', payload);
+          
           if (callbacks.onMessage) {
             // Fetch the complete message with sender info
-            const { data } = await supabase
-              .rpc('get_room_messages', {
-                room_id_param: roomId,
-                limit_count: 1,
-                offset_count: 0,
-              });
+            try {
+              const { data } = await supabase
+                .rpc('get_room_messages', {
+                  room_id_param: roomId,
+                  limit_count: 1,
+                  offset_count: 0,
+                });
 
-            if (data && data.length > 0) {
-              const msg = data[0];
-              callbacks.onMessage({
-                id: msg.message_id,
-                content: msg.content,
-                messageType: msg.message_type,
-                senderId: msg.sender_id,
-                senderName: msg.sender_name,
-                senderPhoto: msg.sender_photo,
-                replyTo: msg.reply_to,
-                replyContent: msg.reply_content,
-                metadata: msg.metadata,
-                createdAt: msg.created_at,
-                editedAt: msg.edited_at,
-              });
+              if (data && data.length > 0) {
+                const msg = data[0];
+                callbacks.onMessage({
+                  id: msg.message_id,
+                  content: msg.content,
+                  messageType: msg.message_type,
+                  senderId: msg.sender_id,
+                  senderName: msg.sender_name,
+                  senderPhoto: msg.sender_photo,
+                  replyTo: msg.reply_to,
+                  replyContent: msg.reply_content,
+                  metadata: msg.metadata,
+                  createdAt: msg.created_at,
+                  editedAt: msg.edited_at,
+                });
+              }
+            } catch (error) {
+              console.error('Error fetching new message details:', error);
             }
           }
         }
@@ -506,6 +486,8 @@ class ChatService {
           table: 'user_presence',
         },
         (payload) => {
+          console.log('Presence update:', payload);
+          
           if (callbacks.onPresenceUpdate && payload.new) {
             callbacks.onPresenceUpdate({
               userId: payload.new.user_id,
@@ -517,16 +499,21 @@ class ChatService {
         }
       )
       .on('broadcast', { event: 'typing' }, (payload) => {
+        console.log('Typing indicator:', payload);
+        
         if (callbacks.onTyping) {
           callbacks.onTyping(payload.payload.userId, payload.payload.isTyping);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
 
     this.realtimeChannels.set(channelName, channel);
 
     // Return unsubscribe function
     return () => {
+      console.log('Unsubscribing from room:', roomId);
       channel.unsubscribe();
       this.realtimeChannels.delete(channelName);
     };
@@ -538,19 +525,27 @@ class ChatService {
     const channel = this.realtimeChannels.get(channelName);
     
     if (channel) {
-      await channel.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: {
-          userId: (await supabase.auth.getUser()).data.user?.id,
-          isTyping,
-        },
-      });
+      try {
+        const { data: user } = await supabase.auth.getUser();
+        if (user.user) {
+          await channel.send({
+            type: 'broadcast',
+            event: 'typing',
+            payload: {
+              userId: user.user.id,
+              isTyping,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Error sending typing indicator:', error);
+      }
     }
   }
 
   // Cleanup all subscriptions
   cleanup(): void {
+    console.log('Cleaning up chat service subscriptions');
     this.realtimeChannels.forEach((channel) => {
       channel.unsubscribe();
     });
