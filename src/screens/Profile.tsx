@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAtom } from "jotai";
 import { getDefaultStore } from "jotai";
@@ -6,6 +6,7 @@ import { userProfileAtom, profileSavedAtom, UserProfile } from "@/store/profile"
 import { screenAtom } from "@/store/screens";
 import { useAuthContext } from "@/components/AuthProvider";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useProfile } from "@/hooks/useProfile";
 import {
   X,
   Save,
@@ -22,7 +23,11 @@ import {
   Sparkles,
   Edit3,
   Plus,
-  Trash2
+  Trash2,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -32,8 +37,9 @@ const Button = React.forwardRef<
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
     variant?: "ghost" | "outline" | "primary" | "secondary" | "danger";
     size?: "icon" | "sm" | "default";
+    loading?: boolean;
   }
->(({ className, variant = "default", size = "default", ...props }, ref) => {
+>(({ className, variant = "default", size = "default", loading = false, children, disabled, ...props }, ref) => {
   const baseStyles = "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:pointer-events-none";
   
   const variants = {
@@ -54,9 +60,15 @@ const Button = React.forwardRef<
   return (
     <button
       className={cn(baseStyles, variants[variant], sizes[size], className)}
+      disabled={disabled || loading}
       ref={ref}
       {...props}
-    />
+    >
+      {loading ? (
+        <Loader2 className="size-4 animate-spin mr-2" />
+      ) : null}
+      {children}
+    </button>
   );
 });
 Button.displayName = "Button";
@@ -224,25 +236,23 @@ const PhotoUpload = ({
   currentPhoto, 
   onPhotoChange, 
   aspectRatio = "square",
-  icon = Camera
+  icon = Camera,
+  loading = false
 }: {
   label: string;
   currentPhoto?: string;
-  onPhotoChange: (photo: string) => void;
+  onPhotoChange: (photo: string | File) => void;
   aspectRatio?: "square" | "cover";
   icon?: any;
+  loading?: boolean;
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onPhotoChange(result);
-      };
-      reader.readAsDataURL(file);
+      // Pass the file directly instead of converting to base64
+      onPhotoChange(file);
     }
   };
 
@@ -263,6 +273,12 @@ const PhotoUpload = ({
         "relative group rounded-xl border-2 border-dashed border-slate-600 hover:border-cyan-500/50 transition-all duration-200 overflow-hidden",
         aspectRatio === "square" ? "aspect-square" : "aspect-[3/1]"
       )}>
+        {loading && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+            <Loader2 className="size-6 animate-spin text-cyan-400" />
+          </div>
+        )}
+        
         {currentPhoto ? (
           <>
             <img
@@ -275,6 +291,7 @@ const PhotoUpload = ({
                 size="sm"
                 variant="secondary"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
               >
                 <Edit3 className="size-4 mr-1" />
                 Change
@@ -283,6 +300,7 @@ const PhotoUpload = ({
                 size="sm"
                 variant="danger"
                 onClick={handleRemovePhoto}
+                disabled={loading}
               >
                 <Trash2 className="size-4 mr-1" />
                 Remove
@@ -310,6 +328,7 @@ const PhotoUpload = ({
           accept="image/*"
           onChange={handleFileSelect}
           className="hidden"
+          disabled={loading}
         />
       </div>
     </div>
@@ -443,18 +462,72 @@ const FormField = ({
   );
 };
 
+// Error Message Component
+const ErrorMessage = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30 backdrop-blur-sm"
+  >
+    <AlertCircle className="size-5 text-red-400 flex-shrink-0" />
+    <div className="flex-1">
+      <p className="text-red-300 text-sm font-medium">{message}</p>
+    </div>
+    {onRetry && (
+      <Button size="sm" variant="outline" onClick={onRetry}>
+        <RefreshCw className="size-4 mr-1" />
+        Retry
+      </Button>
+    )}
+  </motion.div>
+);
+
+// Success Message Component
+const SuccessMessage = ({ message }: { message: string }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm"
+  >
+    <CheckCircle className="size-5 text-emerald-400 flex-shrink-0" />
+    <p className="text-emerald-300 text-sm font-medium">{message}</p>
+  </motion.div>
+);
+
 export const Profile: React.FC = () => {
-  const [profile, setProfile] = useAtom(userProfileAtom);
+  const [localProfile, setLocalProfile] = useAtom(userProfileAtom);
   const [, setScreenState] = useAtom(screenAtom);
   const [, setProfileSaved] = useAtom(profileSavedAtom);
   const { user } = useAuthContext();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [photoUploading, setPhotoUploading] = useState<{
+    profile: boolean;
+    cover: boolean;
+  }>({ profile: false, cover: false });
+
+  // Use the profile hook for database operations
+  const { 
+    profile: dbProfile, 
+    loading: profileLoading, 
+    error: profileError, 
+    loadProfile, 
+    saveProfile 
+  } = useProfile();
 
   // Enforce authentication for this screen
   const { isAuthenticated, isLoading } = useAuthGuard({
     showAuthModal: true,
     redirectTo: "auth"
   });
+
+  // Initialize local profile from database profile
+  useEffect(() => {
+    if (dbProfile) {
+      setLocalProfile(dbProfile);
+    }
+  }, [dbProfile, setLocalProfile]);
 
   const relationshipOptions = [
     { label: "Prefer not to say", value: "prefer-not-to-say" },
@@ -472,11 +545,11 @@ export const Profile: React.FC = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!profile.fullName.trim()) {
+    if (!localProfile.fullName.trim()) {
       newErrors.fullName = "Full name is required";
     }
 
-    if (profile.age && (profile.age < 13 || profile.age > 120)) {
+    if (localProfile.age && (localProfile.age < 13 || localProfile.age > 120)) {
       newErrors.age = "Please enter a valid age";
     }
 
@@ -491,27 +564,30 @@ export const Profile: React.FC = () => {
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    console.log('Saving profile:', profile);
-    
-    const updatedProfile = {
-      ...profile,
-      email: user?.email || profile.email,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    localStorage.setItem('user-profile', JSON.stringify(updatedProfile));
-    
-    const store = getDefaultStore();
-    store.set(userProfileAtom, updatedProfile);
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    setProfileSaved(true);
-    handleClose();
+    setIsSubmitting(true);
+    setErrors({});
+    setSuccessMessage('');
+
+    try {
+      await saveProfile(localProfile);
+      
+      setSuccessMessage('Profile saved successfully!');
+      setProfileSaved(true);
+      
+      // Auto-close after success
+      setTimeout(() => {
+        handleClose();
+      }, 1500);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save profile';
+      setErrors({ submit: errorMessage });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
-    setProfile(prev => ({ ...prev, ...updates }));
+    setLocalProfile(prev => ({ ...prev, ...updates }));
     // Clear related errors
     Object.keys(updates).forEach(key => {
       if (errors[key]) {
@@ -520,13 +596,42 @@ export const Profile: React.FC = () => {
     });
   };
 
+  const handlePhotoChange = async (field: 'profilePhoto' | 'coverPhoto', photoData: string | File) => {
+    if (!photoData) {
+      updateProfile({ [field]: '' });
+      return;
+    }
+
+    // If it's a File object, convert to base64 for preview
+    if (photoData instanceof File) {
+      setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: true }));
+      
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          updateProfile({ [field]: result });
+          setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: false }));
+        };
+        reader.readAsDataURL(photoData);
+      } catch (error) {
+        console.error('Error reading file:', error);
+        setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: false }));
+      }
+    } else {
+      updateProfile({ [field]: photoData });
+    }
+  };
+
   // Show loading while checking authentication
-  if (isLoading) {
+  if (isLoading || profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-white text-lg">Verifying access...</p>
+          <p className="text-white text-lg">
+            {isLoading ? "Verifying access..." : "Loading profile..."}
+          </p>
         </div>
       </div>
     );
@@ -567,6 +672,19 @@ export const Profile: React.FC = () => {
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           
+          {/* Error/Success Messages */}
+          {profileError && (
+            <ErrorMessage message={profileError} onRetry={loadProfile} />
+          )}
+          
+          {errors.submit && (
+            <ErrorMessage message={errors.submit} />
+          )}
+          
+          {successMessage && (
+            <SuccessMessage message={successMessage} />
+          )}
+          
           {/* Photos Section */}
           <ProfileSection
             title="Photos"
@@ -576,17 +694,19 @@ export const Profile: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PhotoUpload
                 label="Profile Photo"
-                currentPhoto={profile.profilePhoto}
-                onPhotoChange={(photo) => updateProfile({ profilePhoto: photo })}
+                currentPhoto={localProfile.profilePhoto}
+                onPhotoChange={(photo) => handlePhotoChange('profilePhoto', photo)}
                 aspectRatio="square"
                 icon={User}
+                loading={photoUploading.profile}
               />
               <PhotoUpload
                 label="Cover Photo"
-                currentPhoto={profile.coverPhoto}
-                onPhotoChange={(photo) => updateProfile({ coverPhoto: photo })}
+                currentPhoto={localProfile.coverPhoto}
+                onPhotoChange={(photo) => handlePhotoChange('coverPhoto', photo)}
                 aspectRatio="cover"
                 icon={ImageIcon}
+                loading={photoUploading.cover}
               />
             </div>
           </ProfileSection>
@@ -603,7 +723,7 @@ export const Profile: React.FC = () => {
                 <Input
                   id="fullName"
                   icon={<User className="size-4" />}
-                  value={profile.fullName}
+                  value={localProfile.fullName}
                   onChange={(e) => updateProfile({ fullName: e.target.value })}
                   placeholder="Enter your full name"
                   error={errors.fullName}
@@ -616,7 +736,7 @@ export const Profile: React.FC = () => {
                   id="birthday"
                   type="date"
                   icon={<Calendar className="size-4" />}
-                  value={profile.birthday || ""}
+                  value={localProfile.birthday || ""}
                   onChange={(e) => updateProfile({ birthday: e.target.value })}
                 />
               </FormField>
@@ -629,7 +749,7 @@ export const Profile: React.FC = () => {
                   min="13"
                   max="120"
                   icon={<User className="size-4" />}
-                  value={profile.age || ""}
+                  value={localProfile.age || ""}
                   onChange={(e) => updateProfile({ age: e.target.value ? parseInt(e.target.value) : undefined })}
                   placeholder="Enter your age"
                   error={errors.age}
@@ -641,7 +761,7 @@ export const Profile: React.FC = () => {
                 <Input
                   id="location"
                   icon={<MapPin className="size-4" />}
-                  value={profile.location || ""}
+                  value={localProfile.location || ""}
                   onChange={(e) => updateProfile({ location: e.target.value })}
                   placeholder="City, Country"
                 />
@@ -652,7 +772,7 @@ export const Profile: React.FC = () => {
               <Label htmlFor="bio">Bio</Label>
               <Textarea
                 id="bio"
-                value={profile.bio}
+                value={localProfile.bio}
                 onChange={(e) => updateProfile({ bio: e.target.value })}
                 placeholder="Tell us about yourself, your interests, and what makes you unique..."
                 rows={4}
@@ -672,7 +792,7 @@ export const Profile: React.FC = () => {
                 <Input
                   id="job"
                   icon={<Briefcase className="size-4" />}
-                  value={profile.job}
+                  value={localProfile.job}
                   onChange={(e) => updateProfile({ job: e.target.value })}
                   placeholder="What do you do for work?"
                 />
@@ -683,7 +803,7 @@ export const Profile: React.FC = () => {
                 <Select
                   id="fashion"
                   icon={<Sparkles className="size-4" />}
-                  value={profile.fashion}
+                  value={localProfile.fashion}
                   onChange={(e) => updateProfile({ fashion: e.target.value })}
                 >
                   <option value="">Select your style</option>
@@ -700,7 +820,7 @@ export const Profile: React.FC = () => {
                 <Select
                   id="relationshipStatus"
                   icon={<Heart className="size-4" />}
-                  value={profile.relationshipStatus}
+                  value={localProfile.relationshipStatus}
                   onChange={(e) => updateProfile({ relationshipStatus: e.target.value })}
                 >
                   {relationshipOptions.map((option) => (
@@ -717,7 +837,7 @@ export const Profile: React.FC = () => {
                   id="website"
                   type="url"
                   icon={<Globe className="size-4" />}
-                  value={profile.website || ""}
+                  value={localProfile.website || ""}
                   onChange={(e) => updateProfile({ website: e.target.value })}
                   placeholder="https://yourwebsite.com"
                 />
@@ -733,7 +853,7 @@ export const Profile: React.FC = () => {
           >
             <div className="space-y-4">
               <InterestTags
-                interests={profile.interests || []}
+                interests={localProfile.interests || []}
                 onInterestsChange={(interests) => updateProfile({ interests })}
               />
 
@@ -743,7 +863,7 @@ export const Profile: React.FC = () => {
                   id="phone"
                   type="tel"
                   icon={<Phone className="size-4" />}
-                  value={profile.phone || ""}
+                  value={localProfile.phone || ""}
                   onChange={(e) => updateProfile({ phone: e.target.value })}
                   placeholder="+1 (555) 123-4567"
                 />
@@ -766,7 +886,7 @@ export const Profile: React.FC = () => {
               <div className="space-y-1 text-slate-400">
                 <p>• All fields are optional except your name</p>
                 <p>• Your profile helps personalize AI conversations</p>
-                <p>• Data is stored locally and securely</p>
+                <p>• Data is stored securely in the cloud</p>
               </div>
             </div>
             <div className="flex gap-3 w-full lg:w-auto">
@@ -774,6 +894,7 @@ export const Profile: React.FC = () => {
                 variant="outline"
                 onClick={handleClose}
                 className="flex-1 lg:flex-none min-w-[100px]"
+                disabled={isSubmitting}
               >
                 Skip for Now
               </Button>
@@ -781,6 +902,8 @@ export const Profile: React.FC = () => {
                 variant="primary"
                 onClick={handleSave}
                 className="flex-1 lg:flex-none min-w-[140px]"
+                loading={isSubmitting}
+                disabled={isSubmitting}
               >
                 <Save className="size-4 mr-2" />
                 Save Profile
