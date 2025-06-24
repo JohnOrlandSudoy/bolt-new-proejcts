@@ -15,7 +15,8 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  X
+  X,
+  MailCheck
 } from 'lucide-react';
 import gloriaVideo from '@/assets/video/gloria.mp4';
 
@@ -175,6 +176,18 @@ const ErrorMessage = ({ message }: { message: string }) => (
   </motion.div>
 );
 
+// Email Confirmation Message Component
+const EmailConfirmationMessage = ({ message }: { message: string }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="flex items-center gap-3 p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 backdrop-blur-sm"
+  >
+    <MailCheck className="size-5 text-blue-400 flex-shrink-0" />
+    <p className="text-blue-300 text-sm font-medium">{message}</p>
+  </motion.div>
+);
+
 export const Auth: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const { signIn, signUp, loading } = useAuthContext();
@@ -189,6 +202,7 @@ export const Auth: React.FC = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [emailConfirmationMessage, setEmailConfirmationMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = () => {
@@ -233,15 +247,20 @@ export const Auth: React.FC = () => {
     setIsSubmitting(true);
     setErrors({});
     setSuccessMessage('');
+    setEmailConfirmationMessage('');
 
     try {
       if (isSignUp) {
         const { user, error } = await signUp(formData.email, formData.password, formData.fullName);
         
         if (error) {
-          setErrors({ submit: error.message });
+          // Check if it's an email confirmation message
+          if (error.message?.includes('check your email') || error.message?.includes('confirmation link')) {
+            setEmailConfirmationMessage(error.message);
+          } else {
+            setErrors({ submit: error.message });
+          }
         } else if (user) {
-          // Since email confirmation is disabled, user is immediately signed in
           setSuccessMessage('Account created successfully! Welcome to NyxtGen!');
           // Redirect to intro screen after successful signup
           setTimeout(() => {
@@ -252,7 +271,12 @@ export const Auth: React.FC = () => {
         const { user, error } = await signIn(formData.email, formData.password);
         
         if (error) {
-          setErrors({ submit: error.message });
+          // Check if it's an email confirmation message
+          if (error.message?.includes('check your email') || error.message?.includes('confirmation link')) {
+            setEmailConfirmationMessage(error.message);
+          } else {
+            setErrors({ submit: error.message });
+          }
         } else if (user) {
           setSuccessMessage('Welcome back! Redirecting...');
           // Redirect to intro screen after successful login
@@ -285,6 +309,7 @@ export const Auth: React.FC = () => {
     setFormData({ email: '', password: '', fullName: '', confirmPassword: '' });
     setErrors({});
     setSuccessMessage('');
+    setEmailConfirmationMessage('');
   };
 
   return (
@@ -350,17 +375,20 @@ export const Auth: React.FC = () => {
                 </h1>
                 <p className="text-slate-400 text-sm leading-relaxed">
                   {isSignUp 
-                    ? 'Join NyxtGen and start experiencing AI conversations instantly'
+                    ? 'Join NyxtGen and start experiencing AI conversations'
                     : 'Sign in to continue your AI journey'
                   }
                 </p>
               </div>
             </div>
 
-            {/* Success/Error Messages */}
+            {/* Success/Error/Email Confirmation Messages */}
             <AnimatePresence mode="wait">
               {successMessage && (
                 <SuccessMessage message={successMessage} />
+              )}
+              {emailConfirmationMessage && (
+                <EmailConfirmationMessage message={emailConfirmationMessage} />
               )}
               {errors.submit && (
                 <ErrorMessage message={errors.submit} />
@@ -448,7 +476,7 @@ export const Auth: React.FC = () => {
                     isSignUp ? 'Creating Account...' : 'Signing In...'
                   ) : (
                     <>
-                      {isSignUp ? 'Create Account & Start' : 'Sign In'}
+                      {isSignUp ? 'Create Account' : 'Sign In'}
                       <ArrowRight className="size-5" />
                       <Sparkles className="size-4" />
                     </>
@@ -473,9 +501,9 @@ export const Auth: React.FC = () => {
 
             {/* Security Badge */}
             <div className="flex items-center justify-center gap-2 pt-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <Shield className="size-3 text-emerald-400" />
-                <span className="text-xs text-emerald-400 font-medium">Instant Access - No Email Verification</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                <MailCheck className="size-3 text-blue-400" />
+                <span className="text-xs text-blue-400 font-medium">Email Verification Required</span>
               </div>
             </div>
           </div>

@@ -109,10 +109,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('Sign up error:', error);
+        // Handle email confirmation requirement
+        if (error.message?.includes('email_not_confirmed') || error.message?.includes('Email not confirmed')) {
+          return { 
+            user: null, 
+            error: { 
+              ...error, 
+              message: 'Account created! Please check your email and click the confirmation link to complete registration.' 
+            } as AuthError 
+          };
+        }
         return { user: null, error };
       }
 
-      // Since email confirmation is disabled, the user should be automatically signed in
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        return { 
+          user: data.user, 
+          error: { 
+            message: 'Account created! Please check your email and click the confirmation link to complete registration.',
+            name: 'EmailConfirmationRequired'
+          } as AuthError 
+        };
+      }
+
       return { user: data.user, error: null };
     } catch (error) {
       console.error('Sign up exception:', error);
@@ -132,6 +152,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('Sign in error:', error);
+        
+        // Handle email not confirmed error with user-friendly message
+        if (error.message?.includes('email_not_confirmed') || error.message?.includes('Email not confirmed')) {
+          return { 
+            user: null, 
+            error: { 
+              ...error, 
+              message: 'Please check your email and click the confirmation link before signing in. Check your spam folder if you don\'t see the email.' 
+            } as AuthError 
+          };
+        }
+        
         return { user: null, error };
       }
 
