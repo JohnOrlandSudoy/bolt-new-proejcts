@@ -176,13 +176,13 @@ export const Intro: React.FC = () => {
     localStorage.setItem('tavus-token', newToken);
   };
 
-  // Show loading while checking authentication
+  // Show loading while checking authentication - but only for initial load
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-white text-lg">Checking authentication...</p>
+          <p className="text-white text-lg">Loading...</p>
         </div>
       </div>
     );

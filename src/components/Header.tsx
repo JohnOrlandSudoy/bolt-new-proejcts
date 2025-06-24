@@ -139,8 +139,16 @@ export const Header = memo(() => {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    setScreenState({ currentScreen: "home" });
+    try {
+      // Immediately redirect to home for instant feedback
+      setScreenState({ currentScreen: "home" });
+      
+      // Then perform the actual sign out in the background
+      await signOut();
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      // Even if sign out fails, we've already redirected to home
+    }
   };
 
   return (

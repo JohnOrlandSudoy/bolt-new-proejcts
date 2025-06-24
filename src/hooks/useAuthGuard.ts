@@ -20,6 +20,7 @@ export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
   const [, setScreenState] = useAtom(screenAtom);
 
   useEffect(() => {
+    // Only redirect if we're not loading and there's no user
     if (!loading && !user) {
       if (onUnauthorized) {
         onUnauthorized();

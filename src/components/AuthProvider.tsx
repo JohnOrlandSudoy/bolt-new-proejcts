@@ -58,7 +58,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+        
+        // Only set loading to false if we're not already loaded
+        // This prevents the loading state from flickering during sign out
+        if (loading) {
+          setLoading(false);
+        }
 
         // Handle user profile creation/update for signed in users
         if (event === 'SIGNED_IN' && session?.user) {
@@ -70,7 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [loading]);
 
   const createOrUpdateProfile = async (user: User) => {
     try {
@@ -96,7 +101,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
-      setLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -117,14 +121,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Sign up exception:', error);
       return { user: null, error: error as AuthError };
-    } finally {
-      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -139,31 +140,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Sign in exception:', error);
       return { user: null, error: error as AuthError };
-    } finally {
-      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
-      setLoading(true);
+      // Immediately clear local state for instant UI feedback
+      setUser(null);
+      setSession(null);
+      
+      // Then perform the actual sign out
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Sign out error:', error);
+        // If sign out failed, we might want to restore the session
+        // but for now, we'll keep the user signed out locally
         return { error };
       }
 
-      // Clear local state
-      setUser(null);
-      setSession(null);
-      
       return { error: null };
     } catch (error) {
       console.error('Sign out exception:', error);
       return { error: error as AuthError };
-    } finally {
-      setLoading(false);
     }
   };
 
