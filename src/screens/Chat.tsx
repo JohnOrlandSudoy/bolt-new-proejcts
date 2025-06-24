@@ -41,16 +41,21 @@ import {
   MapPin,
   Calendar,
   Eye,
-  EyeOff
+  EyeOff,
+  UserCheck,
+  UserX,
+  AlertCircle,
+  Check
 } from 'lucide-react';
 import { cn } from '@/utils';
-import { ChatMessage, ChatRoom, UserForCollaboration } from '@/services/chatService';
+import { ChatMessage, ChatRoom, UserForCollaboration, UserConnection } from '@/services/chatService';
+import { chatService } from '@/services/chatService';
 
 // Enhanced Button Component
 const Button = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    variant?: "ghost" | "outline" | "primary" | "secondary" | "danger";
+    variant?: "ghost" | "outline" | "primary" | "secondary" | "danger" | "success";
     size?: "icon" | "sm" | "default" | "lg";
     loading?: boolean;
   }
@@ -63,6 +68,7 @@ const Button = React.forwardRef<
     primary: "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-lg shadow-cyan-500/25",
     secondary: "bg-white/15 hover:bg-white/25 text-white backdrop-blur-sm border border-white/20",
     danger: "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/25",
+    success: "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white shadow-lg shadow-green-500/25",
     default: "bg-white/15 hover:bg-white/25 text-white backdrop-blur-sm"
   };
   
@@ -339,15 +345,17 @@ const MessageItem = ({
   );
 };
 
-// User Search Item Component
+// User Search Item Component with Connection Management
 const UserSearchItem = ({ 
   user, 
   onConnect, 
-  onMessage 
+  onMessage,
+  onConnectionResponse
 }: { 
   user: UserForCollaboration; 
   onConnect: () => void; 
-  onMessage: () => void; 
+  onMessage: () => void;
+  onConnectionResponse?: (response: 'accepted' | 'declined') => void;
 }) => {
   const getStatusColor = () => {
     switch (user.presenceStatus) {
@@ -362,18 +370,57 @@ const UserSearchItem = ({
     }
   };
 
-  const getConnectionStatusText = () => {
+  const getConnectionButton = () => {
     switch (user.connectionStatus) {
-      case 'accepted':
-        return 'Connected';
+      case 'none':
+        return (
+          <Button size="sm" variant="primary" onClick={onConnect}>
+            <UserPlus className="size-4 mr-1" />
+            Connect
+          </Button>
+        );
       case 'pending':
-        return 'Pending';
-      case 'blocked':
-        return 'Blocked';
+        return (
+          <div className="flex gap-1">
+            {onConnectionResponse && (
+              <>
+                <Button size="sm" variant="success" onClick={() => onConnectionResponse('accepted')}>
+                  <Check className="size-4" />
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => onConnectionResponse('declined')}>
+                  <X className="size-4" />
+                </Button>
+              </>
+            )}
+            <Button size="sm" variant="secondary" disabled>
+              <Clock className="size-4 mr-1" />
+              Pending
+            </Button>
+          </div>
+        );
+      case 'accepted':
+        return (
+          <Button size="sm" variant="success" disabled>
+            <UserCheck className="size-4 mr-1" />
+            Connected
+          </Button>
+        );
       case 'declined':
-        return 'Declined';
+        return (
+          <Button size="sm" variant="outline" onClick={onConnect}>
+            <UserPlus className="size-4 mr-1" />
+            Retry
+          </Button>
+        );
+      case 'blocked':
+        return (
+          <Button size="sm" variant="danger" disabled>
+            <UserX className="size-4 mr-1" />
+            Blocked
+          </Button>
+        );
       default:
-        return 'Connect';
+        return null;
     }
   };
 
@@ -434,23 +481,72 @@ const UserSearchItem = ({
 
       {/* Actions */}
       <div className="flex gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onMessage}
-        >
-          <MessageSquare className="size-4" />
-        </Button>
+        {user.connectionStatus === 'accepted' && (
+          <Button size="sm" variant="outline" onClick={onMessage}>
+            <MessageSquare className="size-4" />
+          </Button>
+        )}
+        {getConnectionButton()}
+      </div>
+    </motion.div>
+  );
+};
+
+// Connection Item Component
+const ConnectionItem = ({ 
+  connection, 
+  onMessage, 
+  onRespond 
+}: { 
+  connection: UserConnection; 
+  onMessage: () => void; 
+  onRespond?: (response: 'accepted' | 'declined') => void; 
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200"
+    >
+      {/* Avatar */}
+      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-semibold">
+        {connection.otherUserName.charAt(0).toUpperCase()}
+      </div>
+
+      {/* User Info */}
+      <div className="flex-1 min-w-0">
+        <h3 className="font-semibold text-white truncate">{connection.otherUserName}</h3>
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <span className="capitalize">{connection.connectionType}</span>
+          <span>•</span>
+          <span className="capitalize">{connection.status}</span>
+          {!connection.isRequester && connection.status === 'pending' && (
+            <>
+              <span>•</span>
+              <span className="text-cyan-400">Wants to connect</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        {connection.status === 'accepted' && (
+          <Button size="sm" variant="outline" onClick={onMessage}>
+            <MessageSquare className="size-4" />
+          </Button>
+        )}
         
-        <Button
-          size="sm"
-          variant={user.connectionStatus === 'accepted' ? 'secondary' : 'primary'}
-          onClick={onConnect}
-          disabled={user.connectionStatus === 'pending' || user.connectionStatus === 'blocked'}
-        >
-          <UserPlus className="size-4 mr-1" />
-          {getConnectionStatusText()}
-        </Button>
+        {!connection.isRequester && connection.status === 'pending' && onRespond && (
+          <>
+            <Button size="sm" variant="success" onClick={() => onRespond('accepted')}>
+              <Check className="size-4" />
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => onRespond('declined')}>
+              <X className="size-4" />
+            </Button>
+          </>
+        )}
       </div>
     </motion.div>
   );
@@ -459,9 +555,11 @@ const UserSearchItem = ({
 // Main Chat Component
 export const Chat: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
-  const [activeTab, setActiveTab] = useState<'chats' | 'users'>('chats');
+  const [activeTab, setActiveTab] = useState<'chats' | 'users' | 'connections'>('chats');
   const [messageInput, setMessageInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [connections, setConnections] = useState<UserConnection[]>([]);
+  const [loadingConnections, setLoadingConnections] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
@@ -488,6 +586,7 @@ export const Chat: React.FC = () => {
     isConnected,
     typingUsers,
     sendTyping,
+    loadChatRooms,
   } = useChat();
 
   const {
@@ -500,10 +599,30 @@ export const Chat: React.FC = () => {
     createDirectMessage: createDMFromSearch,
   } = useUserSearch();
 
+  // Load connections
+  const loadConnections = async () => {
+    setLoadingConnections(true);
+    try {
+      const userConnections = await chatService.getUserConnections();
+      setConnections(userConnections);
+    } catch (error) {
+      console.error('Failed to load connections:', error);
+    } finally {
+      setLoadingConnections(false);
+    }
+  };
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentRoomMessages]);
+
+  // Load connections when tab changes
+  useEffect(() => {
+    if (activeTab === 'connections') {
+      loadConnections();
+    }
+  }, [activeTab]);
 
   // Handle typing indicators
   useEffect(() => {
@@ -555,6 +674,8 @@ export const Chat: React.FC = () => {
       messageInputRef.current?.focus();
     } catch (error) {
       console.error('Failed to send message:', error);
+      // Show error to user
+      alert(error instanceof Error ? error.message : 'Failed to send message');
     }
   };
 
@@ -562,19 +683,49 @@ export const Chat: React.FC = () => {
   const handleConnectUser = async (user: UserForCollaboration) => {
     try {
       await sendConnectionRequest(user.userId, 'collaborate');
+      // Refresh user list to update connection status
+      // The useUserSearch hook should handle this automatically
     } catch (error) {
       console.error('Failed to send connection request:', error);
+      alert(error instanceof Error ? error.message : 'Failed to send connection request');
     }
   };
 
   // Handle create DM from user search
   const handleMessageUser = async (user: UserForCollaboration) => {
     try {
-      const roomId = await createDMFromSearch(user.userId);
+      const roomId = await chatService.getOrCreateDMRoom(user.userId);
       setCurrentRoom(roomId);
       setActiveTab('chats');
+      await loadChatRooms(); // Refresh chat rooms list
     } catch (error) {
       console.error('Failed to create DM:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create chat');
+    }
+  };
+
+  // Handle connection response
+  const handleConnectionResponse = async (connectionId: string, response: 'accepted' | 'declined') => {
+    try {
+      await chatService.respondToConnectionRequest(connectionId, response);
+      await loadConnections(); // Refresh connections
+      await loadChatRooms(); // Refresh chat rooms if accepted
+    } catch (error) {
+      console.error('Failed to respond to connection:', error);
+      alert(error instanceof Error ? error.message : 'Failed to respond to connection');
+    }
+  };
+
+  // Handle message connection
+  const handleMessageConnection = async (connection: UserConnection) => {
+    try {
+      const roomId = await chatService.getOrCreateDMRoom(connection.otherUserId);
+      setCurrentRoom(roomId);
+      setActiveTab('chats');
+      await loadChatRooms(); // Refresh chat rooms list
+    } catch (error) {
+      console.error('Failed to create DM:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create chat');
     }
   };
 
@@ -621,26 +772,38 @@ export const Chat: React.FC = () => {
               <button
                 onClick={() => setActiveTab('chats')}
                 className={cn(
-                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200",
+                  "flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all duration-200",
                   activeTab === 'chats'
                     ? "bg-cyan-500 text-white"
                     : "text-slate-400 hover:text-white"
                 )}
               >
-                <MessageCircle className="size-4 inline mr-2" />
+                <MessageCircle className="size-4 inline mr-1" />
                 Chats
               </button>
               <button
                 onClick={() => setActiveTab('users')}
                 className={cn(
-                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200",
+                  "flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all duration-200",
                   activeTab === 'users'
                     ? "bg-cyan-500 text-white"
                     : "text-slate-400 hover:text-white"
                 )}
               >
-                <Users className="size-4 inline mr-2" />
+                <Users className="size-4 inline mr-1" />
                 Users
+              </button>
+              <button
+                onClick={() => setActiveTab('connections')}
+                className={cn(
+                  "flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all duration-200",
+                  activeTab === 'connections'
+                    ? "bg-cyan-500 text-white"
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                <UserCheck className="size-4 inline mr-1" />
+                Connections
               </button>
             </div>
           </div>
@@ -692,7 +855,7 @@ export const Chat: React.FC = () => {
                     )}
                   </div>
                 </motion.div>
-              ) : (
+              ) : activeTab === 'users' ? (
                 <motion.div
                   key="users"
                   initial={{ opacity: 0, x: 20 }}
@@ -733,6 +896,44 @@ export const Chat: React.FC = () => {
                           user={user}
                           onConnect={() => handleConnectUser(user)}
                           onMessage={() => handleMessageUser(user)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="connections"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="h-full flex flex-col"
+                >
+                  {/* Header */}
+                  <div className="p-4">
+                    <h2 className="text-lg font-semibold text-white mb-2">Your Connections</h2>
+                    <p className="text-sm text-slate-400">Manage your connections and requests</p>
+                  </div>
+
+                  {/* Connections List */}
+                  <div className="flex-1 overflow-y-auto px-4 space-y-3">
+                    {loadingConnections ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="size-6 animate-spin text-cyan-400" />
+                      </div>
+                    ) : connections.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400">
+                        <UserCheck className="size-12 mx-auto mb-4 opacity-50" />
+                        <p>No connections yet</p>
+                        <p className="text-sm">Start connecting with users!</p>
+                      </div>
+                    ) : (
+                      connections.map((connection) => (
+                        <ConnectionItem
+                          key={connection.id}
+                          connection={connection}
+                          onMessage={() => handleMessageConnection(connection)}
+                          onRespond={(response) => handleConnectionResponse(connection.id, response)}
                         />
                       ))
                     )}
@@ -794,6 +995,7 @@ export const Chat: React.FC = () => {
                   </div>
                 ) : errorMessages ? (
                   <div className="text-center py-8 text-red-400">
+                    <AlertCircle className="size-6 mx-auto mb-2" />
                     {errorMessages}
                   </div>
                 ) : currentRoomMessages.length === 0 ? (
@@ -882,10 +1084,10 @@ export const Chat: React.FC = () => {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setActiveTab('chats')}
+                    onClick={() => setActiveTab('connections')}
                   >
-                    <MessageCircle className="size-4 mr-2" />
-                    View Chats
+                    <UserCheck className="size-4 mr-2" />
+                    View Connections
                   </Button>
                 </div>
               </div>

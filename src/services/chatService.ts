@@ -233,6 +233,19 @@ class ChatService {
         throw new Error('User not authenticated');
       }
 
+      // Check if user is participant in the room
+      const { data: participant, error: participantError } = await supabase
+        .from('chat_participants')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('user_id', user.user.id)
+        .single();
+
+      if (participantError || !participant) {
+        console.error('User is not a participant in this room:', participantError);
+        throw new Error('You are not a participant in this chat room. Please connect with the user first.');
+      }
+
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
@@ -376,6 +389,32 @@ class ChatService {
     }
   }
 
+  // Get connection status between current user and another user
+  async getConnectionStatus(otherUserId: string): Promise<{ status: string; connectionType: string; isRequester: boolean } | null> {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data, error } = await supabase
+        .rpc('get_connection_status', {
+          user1_id: user.user.id,
+          user2_id: otherUserId,
+        });
+
+      if (error) {
+        console.error('Error getting connection status:', error);
+        return null;
+      }
+
+      return data && data.length > 0 ? data[0] : null;
+    } catch (error) {
+      console.error('Get connection status failed:', error);
+      return null;
+    }
+  }
+
   // Update user presence
   async updateUserPresence(status: 'online' | 'away' | 'busy' | 'offline', roomId?: string): Promise<void> {
     try {
@@ -413,6 +452,34 @@ class ChatService {
       console.log('Messages marked as read');
     } catch (error) {
       console.error('Mark messages as read failed:', error);
+      throw error;
+    }
+  }
+
+  // Check if user can message another user (are they connected?)
+  async canMessageUser(otherUserId: string): Promise<boolean> {
+    try {
+      const connectionStatus = await this.getConnectionStatus(otherUserId);
+      return connectionStatus?.status === 'accepted';
+    } catch (error) {
+      console.error('Error checking if user can message:', error);
+      return false;
+    }
+  }
+
+  // Get or create DM room (only if users are connected)
+  async getOrCreateDMRoom(otherUserId: string): Promise<string> {
+    try {
+      // First check if users are connected
+      const canMessage = await this.canMessageUser(otherUserId);
+      if (!canMessage) {
+        throw new Error('You must be connected with this user to send messages. Please send a connection request first.');
+      }
+
+      // Create or get existing DM room
+      return await this.createDirectMessageRoom(otherUserId);
+    } catch (error) {
+      console.error('Error getting/creating DM room:', error);
       throw error;
     }
   }
