@@ -177,7 +177,7 @@ export const useAuth = () => {
         throw new Error(`Too many failed attempts. Please try again later. Remaining attempts: ${rateLimit.remainingAttempts}`);
       }
 
-      // Attempt sign up
+      // Attempt sign up with email confirmation disabled
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -193,10 +193,19 @@ export const useAuth = () => {
       await logAuthAttempt(email, 'signup', !error);
 
       if (error) {
+        // Handle specific Supabase errors
+        if (error.message.includes('User already registered')) {
+          throw new Error('An account with this email already exists. Please sign in instead.');
+        }
         throw error;
       }
 
       // Create profile record immediately since no email confirmation is needed
+      if (data.user && !data.session) {
+        // If user was created but no session (shouldn't happen with email confirmation disabled)
+        throw new Error('Account created but sign-in failed. Please try signing in.');
+      }
+
       if (data.user) {
         await createUserProfile(data.user.id, email, fullName);
       }
@@ -207,14 +216,16 @@ export const useAuth = () => {
       
       // Enhanced error handling
       let errorMessage = 'Sign up failed';
-      if (error.message.includes('already registered')) {
+      if (error.message.includes('already registered') || error.message.includes('already exists')) {
         errorMessage = 'An account with this email already exists. Please sign in instead.';
       } else if (error.message.includes('Password')) {
         errorMessage = error.message;
-      } else if (error.message.includes('rate limit')) {
+      } else if (error.message.includes('rate limit') || error.message.includes('Too many')) {
         errorMessage = error.message;
       } else if (error.message.includes('email')) {
         errorMessage = 'Please enter a valid email address';
+      } else if (error.message.includes('Invalid API key')) {
+        errorMessage = 'Authentication service is temporarily unavailable. Please try again later.';
       }
 
       return { data: null, error: { message: errorMessage, code: error.code } };
@@ -272,13 +283,15 @@ export const useAuth = () => {
       if (error.message.includes('Invalid login credentials')) {
         errorMessage = 'Invalid email or password. Please check your credentials and try again.';
       } else if (error.message.includes('Email not confirmed')) {
-        errorMessage = 'Please check your email and click the confirmation link before signing in.';
-      } else if (error.message.includes('rate limit')) {
+        errorMessage = 'Your account is not yet activated. Please check your email for a confirmation link.';
+      } else if (error.message.includes('rate limit') || error.message.includes('Too many')) {
         errorMessage = error.message;
       } else if (error.message.includes('network')) {
         errorMessage = 'Network error. Please check your connection and try again.';
       } else if (error.message.includes('email')) {
         errorMessage = 'Please enter a valid email address';
+      } else if (error.message.includes('Invalid API key')) {
+        errorMessage = 'Authentication service is temporarily unavailable. Please try again later.';
       }
 
       return { data: null, error: { message: errorMessage, code: error.code } };

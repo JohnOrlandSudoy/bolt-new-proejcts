@@ -91,34 +91,12 @@ export interface Database {
           metadata?: any | null;
         };
       };
-      auth_attempts: {
-        Row: {
-          id: string;
-          email: string;
-          attempt_type: 'signin' | 'signup';
-          success: boolean;
-          ip_address: string | null;
-          user_agent: string | null;
-          created_at: string;
-        };
-        Insert: {
-          email: string;
-          attempt_type: 'signin' | 'signup';
-          success: boolean;
-          ip_address?: string | null;
-          user_agent?: string | null;
-        };
-        Update: {
-          success?: boolean;
-        };
-      };
     };
   };
 }
 
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type ConversationRecord = Database['public']['Tables']['conversations']['Row'];
-export type AuthAttempt = Database['public']['Tables']['auth_attempts']['Row'];
 
 // Auth error types
 export interface AuthError {
@@ -164,13 +142,18 @@ export const validateEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-// Rate limiting helper
+// Simple client-side rate limiting (fallback when database is unavailable)
+const rateLimitStore = new Map<string, { attempts: number; lastAttempt: number }>();
+
 export const checkRateLimit = async (email: string): Promise<{ allowed: boolean; remainingAttempts: number }> => {
   const maxAttempts = parseInt(import.meta.env.VITE_MAX_LOGIN_ATTEMPTS || '5');
   const timeWindow = 15 * 60 * 1000; // 15 minutes
-  const cutoffTime = new Date(Date.now() - timeWindow).toISOString();
-
+  const now = Date.now();
+  
+  // Try database first, fall back to client-side if it fails
   try {
+    const cutoffTime = new Date(now - timeWindow).toISOString();
+
     const { data, error } = await supabase
       .from('auth_attempts')
       .select('*')
@@ -180,8 +163,9 @@ export const checkRateLimit = async (email: string): Promise<{ allowed: boolean;
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Rate limit check error:', error);
-      return { allowed: true, remainingAttempts: maxAttempts };
+      console.warn('Database rate limit check failed, using client-side fallback:', error.message);
+      // Fall back to client-side rate limiting
+      return checkClientSideRateLimit(email, maxAttempts, timeWindow, now);
     }
 
     const failedAttempts = data?.length || 0;
@@ -192,18 +176,40 @@ export const checkRateLimit = async (email: string): Promise<{ allowed: boolean;
       remainingAttempts
     };
   } catch (error) {
-    console.error('Rate limit check error:', error);
-    return { allowed: true, remainingAttempts: maxAttempts };
+    console.warn('Rate limit check error, using client-side fallback:', error);
+    return checkClientSideRateLimit(email, maxAttempts, timeWindow, now);
   }
 };
 
-// Log auth attempt
+// Client-side rate limiting fallback
+const checkClientSideRateLimit = (email: string, maxAttempts: number, timeWindow: number, now: number) => {
+  const userAttempts = rateLimitStore.get(email);
+  
+  if (!userAttempts) {
+    return { allowed: true, remainingAttempts: maxAttempts - 1 };
+  }
+  
+  // Reset if time window has passed
+  if (now - userAttempts.lastAttempt > timeWindow) {
+    rateLimitStore.delete(email);
+    return { allowed: true, remainingAttempts: maxAttempts - 1 };
+  }
+  
+  const remainingAttempts = Math.max(0, maxAttempts - userAttempts.attempts);
+  return {
+    allowed: userAttempts.attempts < maxAttempts,
+    remainingAttempts
+  };
+};
+
+// Log auth attempt (with fallback)
 export const logAuthAttempt = async (
   email: string, 
   attemptType: 'signin' | 'signup', 
   success: boolean
 ): Promise<void> => {
   try {
+    // Try database first
     await supabase
       .from('auth_attempts')
       .insert({
@@ -214,7 +220,19 @@ export const logAuthAttempt = async (
         user_agent: navigator.userAgent
       });
   } catch (error) {
-    console.error('Failed to log auth attempt:', error);
+    console.warn('Failed to log auth attempt to database, using client-side fallback:', error);
+    
+    // Fall back to client-side tracking for rate limiting
+    if (!success) {
+      const userAttempts = rateLimitStore.get(email) || { attempts: 0, lastAttempt: 0 };
+      rateLimitStore.set(email, {
+        attempts: userAttempts.attempts + 1,
+        lastAttempt: Date.now()
+      });
+    } else {
+      // Clear failed attempts on success
+      rateLimitStore.delete(email);
+    }
   }
 };
 
