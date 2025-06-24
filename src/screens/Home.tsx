@@ -2,11 +2,12 @@ import { AnimatedWrapper } from "@/components/DialogWrapper";
 import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { screenAtom } from "@/store/screens";
-import { ArrowRight, Sparkles, Play, Zap, Brain, Video, MessageCircle, Star } from "lucide-react";
+import { ArrowRight, Sparkles, Play, Zap, Brain, Video, MessageCircle, Star, UserPlus, LogIn } from "lucide-react";
 import AudioButton from "@/components/AudioButton";
 import { LogoText } from "@/components/LogoText";
 import gloriaVideo from "@/assets/video/gloria.mp4";
 import { motion, useScroll, useTransform } from "framer-motion";
+import { useAuthContext } from "@/components/AuthProvider";
 
 // Premium Feature Card Component
 const FeatureCard = ({ 
@@ -111,9 +112,18 @@ const FloatingParticles = () => {
 export const Home: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const { isAuthenticated, isLoading } = useAuthContext();
 
   const handleGetStarted = () => {
-    setScreenState({ currentScreen: "intro" });
+    if (isAuthenticated) {
+      setScreenState({ currentScreen: "intro" });
+    } else {
+      setScreenState({ currentScreen: "auth" });
+    }
+  };
+
+  const handleSignIn = () => {
+    setScreenState({ currentScreen: "auth" });
   };
 
   // Mouse tracking for interactive effects
@@ -184,6 +194,30 @@ export const Home: React.FC = () => {
           ease: "easeInOut",
         }}
       />
+
+      {/* Auth Status Indicator */}
+      {!isLoading && (
+        <div className="absolute top-6 right-6 z-30">
+          {isAuthenticated ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-sm"
+            >
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="text-emerald-300 text-sm font-medium">Authenticated</span>
+            </motion.div>
+          ) : (
+            <AudioButton
+              onClick={handleSignIn}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 text-white backdrop-blur-sm transition-all duration-200 hover:scale-105"
+            >
+              <LogIn className="size-4" />
+              <span className="text-sm font-medium">Sign In</span>
+            </AudioButton>
+          )}
+        </div>
+      )}
 
       {/* Main Content Container */}
       <main className="relative z-20 flex flex-col min-h-screen">
@@ -268,15 +302,25 @@ export const Home: React.FC = () => {
             {/* Primary CTA */}
             <AudioButton
               onClick={handleGetStarted}
-              className="group relative overflow-hidden px-12 py-6 text-xl font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-2xl shadow-2xl shadow-cyan-500/25 hover:shadow-3xl hover:shadow-cyan-500/40 transition-all duration-300 hover:scale-105 border border-cyan-400/20"
+              disabled={isLoading}
+              className="group relative overflow-hidden px-12 py-6 text-xl font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-2xl shadow-2xl shadow-cyan-500/25 hover:shadow-3xl hover:shadow-cyan-500/40 transition-all duration-300 hover:scale-105 border border-cyan-400/20 disabled:opacity-50"
             >
               {/* Animated background */}
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               
               {/* Content */}
               <span className="relative z-10 flex items-center gap-3">
-                <Play className="size-6 fill-current" />
-                Start Experience
+                {isAuthenticated ? (
+                  <>
+                    <Play className="size-6 fill-current" />
+                    Start Experience
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="size-6" />
+                    Get Started
+                  </>
+                )}
                 <ArrowRight className="size-6 group-hover:translate-x-1 transition-transform" />
               </span>
               
