@@ -532,7 +532,7 @@ export const Settings: React.FC = () => {
           </div>
 
           {/* Enhanced Footer Actions */}
-          <div className="sticky bottom-0 mt-10 pt-8 pb-8 bg-gradient-to-t from-black/95 to-black/80 backdrop-blur-lg border-t border-slate-600/30">
+          <div className="sticky bottom-0 mt-10 pt-8 pb-8  border-t border-slate-600/30">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
               <div className="text-sm text-slate-300 leading-relaxed space-y-2">
                 <div className="flex items-center gap-2 mb-3">
