@@ -42,11 +42,17 @@ class ProfileService {
     }
     
     // Get public URL from Supabase storage
-    const { data } = supabase.storage
-      .from('user-uploads')
-      .getPublicUrl(path);
-    
-    return data.publicUrl;
+    try {
+      const { data } = supabase.storage
+        .from('user-uploads')
+        .getPublicUrl(path);
+      
+      console.log('Generated public URL for path:', path, '-> URL:', data.publicUrl);
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error generating public URL:', error);
+      return path; // Return original path as fallback
+    }
   }
 
   // Upload photo to Supabase Storage with proper folder structure
@@ -159,22 +165,34 @@ class ProfileService {
       // Handle photo uploads if they are base64 data
       if (profileData.profilePhoto && profileData.profilePhoto.startsWith('data:')) {
         console.log('Uploading profile photo...');
-        profilePhotoPath = await this.uploadBase64Photo(
-          profileData.profilePhoto, 
-          'profile-photos', 
-          userId
-        );
-        console.log('Profile photo uploaded to path:', profilePhotoPath);
+        try {
+          profilePhotoPath = await this.uploadBase64Photo(
+            profileData.profilePhoto, 
+            'profile-photos', 
+            userId
+          );
+          console.log('Profile photo uploaded to path:', profilePhotoPath);
+        } catch (uploadError) {
+          console.error('Profile photo upload failed:', uploadError);
+          // Keep the base64 data as fallback
+          profilePhotoPath = profileData.profilePhoto;
+        }
       }
 
       if (profileData.coverPhoto && profileData.coverPhoto.startsWith('data:')) {
         console.log('Uploading cover photo...');
-        coverPhotoPath = await this.uploadBase64Photo(
-          profileData.coverPhoto, 
-          'cover-photos', 
-          userId
-        );
-        console.log('Cover photo uploaded to path:', coverPhotoPath);
+        try {
+          coverPhotoPath = await this.uploadBase64Photo(
+            profileData.coverPhoto, 
+            'cover-photos', 
+            userId
+          );
+          console.log('Cover photo uploaded to path:', coverPhotoPath);
+        } catch (uploadError) {
+          console.error('Cover photo upload failed:', uploadError);
+          // Keep the base64 data as fallback
+          coverPhotoPath = profileData.coverPhoto;
+        }
       }
 
       // Convert birthday to date format
@@ -262,11 +280,21 @@ class ProfileService {
 
   // Convert database profile to UserProfile format
   convertToUserProfile(dbProfile: ProfileWithInterests): UserProfile {
+    const profilePhoto = this.getImageUrl(dbProfile.profile.profile_photo || '');
+    const coverPhoto = this.getImageUrl(dbProfile.profile.cover_photo || '');
+    
+    console.log('Converting profile photos:', {
+      originalProfilePhoto: dbProfile.profile.profile_photo,
+      convertedProfilePhoto: profilePhoto,
+      originalCoverPhoto: dbProfile.profile.cover_photo,
+      convertedCoverPhoto: coverPhoto
+    });
+
     return {
       id: dbProfile.profile.id,
       email: dbProfile.profile.email,
-      profilePhoto: this.getImageUrl(dbProfile.profile.profile_photo || ''),
-      coverPhoto: this.getImageUrl(dbProfile.profile.cover_photo || ''),
+      profilePhoto,
+      coverPhoto,
       fullName: dbProfile.profile.full_name,
       birthday: dbProfile.profile.birthday || '',
       bio: dbProfile.profile.bio,
@@ -424,6 +452,30 @@ class ProfileService {
       console.error('Get signed URL failed:', error);
       throw error;
     }
+  }
+
+  // Validate image data before processing
+  validateImageData(imageData: string): boolean {
+    if (!imageData) return false;
+    
+    // Check if it's a valid base64 data URL
+    if (imageData.startsWith('data:image/')) {
+      const base64Parts = imageData.split(',');
+      return base64Parts.length === 2 && base64Parts[1].length > 0;
+    }
+    
+    // Check if it's a valid URL
+    if (imageData.startsWith('http')) {
+      try {
+        new URL(imageData);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    
+    // Check if it's a valid storage path
+    return imageData.includes('/') && imageData.length > 0;
   }
 }
 

@@ -8,6 +8,7 @@ import { useAuthContext } from "@/components/AuthProvider";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useProfile } from "@/hooks/useProfile";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { profileService } from "@/services/profileService";
 import {
   X,
   Save,
@@ -252,8 +253,25 @@ const PhotoUpload = ({
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Pass the file directly instead of converting to base64
-      onPhotoChange(file);
+      console.log('File selected:', file.name, file.type, file.size);
+      
+      // Validate file
+      if (!profileService.validateImageData(`data:${file.type};base64,`)) {
+        console.error('Invalid file type:', file.type);
+        return;
+      }
+      
+      // Convert to base64 for immediate preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        console.log('File converted to base64, length:', result.length);
+        onPhotoChange(result);
+      };
+      reader.onerror = (error) => {
+        console.error('Error reading file:', error);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -264,7 +282,14 @@ const PhotoUpload = ({
     }
   };
 
+  const handleRetryPhoto = () => {
+    // Trigger file input again
+    fileInputRef.current?.click();
+  };
+
   const IconComponent = icon;
+
+  console.log('PhotoUpload render:', { label, currentPhoto: currentPhoto?.substring(0, 50) + '...', loading });
 
   return (
     <div className="space-y-3">
@@ -276,7 +301,10 @@ const PhotoUpload = ({
       )}>
         {loading && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
-            <Loader2 className="size-6 animate-spin text-cyan-400" />
+            <div className="text-center">
+              <Loader2 className="size-6 animate-spin text-cyan-400 mx-auto mb-2" />
+              <p className="text-white text-sm">Processing image...</p>
+            </div>
           </div>
         )}
         
@@ -285,8 +313,9 @@ const PhotoUpload = ({
             <ImageWithFallback
               src={currentPhoto}
               alt={label}
-              className="w-full h-full object-cover"
+              className="w-full h-full"
               errorMessage="Failed to load image"
+              onRetry={handleRetryPhoto}
             />
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
               <Button
@@ -320,6 +349,7 @@ const PhotoUpload = ({
             <div className="text-center">
               <p className="text-white font-medium text-sm">Upload {label}</p>
               <p className="text-slate-400 text-xs">Click to browse files</p>
+              <p className="text-slate-500 text-xs mt-1">JPEG, PNG, WebP, GIF (max 5MB)</p>
             </div>
           </div>
         )}
@@ -327,7 +357,7 @@ const PhotoUpload = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/gif"
           onChange={handleFileSelect}
           className="hidden"
           disabled={loading}
@@ -527,6 +557,7 @@ export const Profile: React.FC = () => {
   // Initialize local profile from database profile
   useEffect(() => {
     if (dbProfile) {
+      console.log('Initializing local profile from database:', dbProfile);
       setLocalProfile(dbProfile);
     }
   }, [dbProfile, setLocalProfile]);
@@ -571,6 +602,7 @@ export const Profile: React.FC = () => {
     setSuccessMessage('');
 
     try {
+      console.log('Saving profile:', localProfile);
       await saveProfile(localProfile);
       
       setSuccessMessage('Profile saved successfully!');
@@ -589,6 +621,7 @@ export const Profile: React.FC = () => {
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
+    console.log('Updating profile with:', updates);
     setLocalProfile(prev => ({ ...prev, ...updates }));
     // Clear related errors
     Object.keys(updates).forEach(key => {
@@ -599,29 +632,38 @@ export const Profile: React.FC = () => {
   };
 
   const handlePhotoChange = async (field: 'profilePhoto' | 'coverPhoto', photoData: string | File) => {
+    console.log('Photo change requested:', field, typeof photoData);
+    
     if (!photoData) {
       updateProfile({ [field]: '' });
       return;
     }
 
-    // If it's a File object, convert to base64 for preview
-    if (photoData instanceof File) {
+    // If it's a string (base64), use it directly for immediate preview
+    if (typeof photoData === 'string') {
+      console.log('Setting photo data directly:', field, photoData.substring(0, 50) + '...');
+      updateProfile({ [field]: photoData });
+    } else {
+      // If it's a File object, convert to base64 for preview
       setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: true }));
       
       try {
         const reader = new FileReader();
         reader.onload = (e) => {
           const result = e.target?.result as string;
+          console.log('File converted to base64 for preview:', field, result.substring(0, 50) + '...');
           updateProfile({ [field]: result });
+          setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: false }));
+        };
+        reader.onerror = (error) => {
+          console.error('Error reading file:', error);
           setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: false }));
         };
         reader.readAsDataURL(photoData);
       } catch (error) {
-        console.error('Error reading file:', error);
+        console.error('Error processing file:', error);
         setPhotoUploading(prev => ({ ...prev, [field === 'profilePhoto' ? 'profile' : 'cover']: false }));
       }
-    } else {
-      updateProfile({ [field]: photoData });
     }
   };
 
